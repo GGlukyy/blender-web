@@ -1,0 +1,160 @@
+# Unattended agent run (weekdays, during school).
+# Claude Code works on the CURRENT milestone, commits locally, and this workflow opens a PR.
+#
+# Setup (once): repo secret CLAUDE_CODE_OAUTH_TOKEN  ← run `claude setup-token` on your PC.
+# Manual start: Actions tab → "Agent run" → Run workflow.
+name: Agent run
+
+on:
+  schedule:
+    # Po–Pá během školy. GitHub cron je v UTC: 06:15 UTC = 07:15 v zimě (SEČ), 08:15 v létě.
+    # Start se může o pár desítek minut zpozdit (vytížení GitHubu) — to je normální.
+    - cron: "15 6 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: "Agent time budget in minutes (max 300)"
+        default: "300"
+
+concurrency:
+  group: nightly-agent
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  night:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355            # GitHub-hosted job limit is 360
+    env:
+      AGENT_MINUTES: ${{ github.event.inputs.minutes || '300' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Free disk space (Blender builds are big)
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL || true
+          sudo docker image prune --all --force || true
+          df -h /
+
+      - name: System packages
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q ninja-build ccache xvfb libgl1-mesa-dri libegl1 libxi6 libxxf86vm1 libxfixes3 libxrender1 libxkbcommon0 libsm6
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Set deadline for the agent
+        run: |
+          echo "AGENT_DEADLINE=$(( $(date +%s) + AGENT_MINUTES * 60 ))" >> "$GITHUB_ENV"
+          echo "NIGHT_DATE=$(date -u +%Y-%m-%d)" >> "$GITHUB_ENV"
+
+      - name: Git identity for local commits
+        run: |
+          git config --global user.name "blender-web-agent"
+          git config --global user.email "blender-web-agent@users.noreply.github.com"
+
+      # ---------- caches (restore) ----------
+      - name: Cache key inputs
+        id: keys
+        run: |
+          echo "versions=${{ hashFiles('versions.env') }}" >> "$GITHUB_OUTPUT"
+          echo "patch=${{ hashFiles('patches/blender-web.patch') }}" >> "$GITHUB_OUTPUT"
+
+      - name: Restore emsdk + Blender source + desktop Blender
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            emsdk
+            blender
+            desktop-blender
+          key: tools-${{ steps.keys.outputs.versions }}
+
+      - name: Restore deps + build dir
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            deps
+            build-wasm
+          key: build-${{ steps.keys.outputs.versions }}-${{ github.run_id }}
+          restore-keys: |
+            build-${{ steps.keys.outputs.versions }}-
+
+      - name: ccache
+        uses: hendrikmuhs/ccache-action@v1.2
+        with:
+          key: ccache-${{ steps.keys.outputs.versions }}
+          max-size: 4G
+
+      # ---------- the agent ----------
+      - name: Claude Code — night shift
+        id: agent
+        continue-on-error: true      # even if the agent hits a limit, we still save work + open a PR
+        timeout-minutes: 310
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            Read .github/agent/nightly-prompt.md and do exactly what it says.
+            Tonight's date (UTC) is ${{ env.NIGHT_DATE }}.
+          claude_args: >-
+            --max-turns 500
+            --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite"
+
+      # ---------- save everything, even after failure ----------
+      - name: Save patch if the agent forgot
+        if: always()
+        run: |
+          if [ -d blender/.git ]; then tools/save_patch.sh; fi
+          if [ -n "$(git status --porcelain)" ]; then
+            git add -A
+            git commit -m "Noc ${NIGHT_DATE}: automatické uložení rozdělané práce"
+          fi
+
+      - name: Save emsdk + Blender source + desktop Blender
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            emsdk
+            blender
+            desktop-blender
+          key: tools-${{ steps.keys.outputs.versions }}
+        continue-on-error: true      # already exists → fine
+
+      - name: Save deps + build dir
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            deps
+            build-wasm
+          key: build-${{ steps.keys.outputs.versions }}-${{ github.run_id }}
+        continue-on-error: true
+
+      - name: Upload test outputs (screenshots, logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: night-${{ env.NIGHT_DATE }}-out
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Open Pull Request for review
+        if: always()
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: night/${{ env.NIGHT_DATE }}-${{ github.run_id }}
+          title: "Noc ${{ env.NIGHT_DATE }} — agent (${{ steps.agent.outcome }})"
+          body-path: STATUS.md
+          labels: night-run
+          delete-branch: true

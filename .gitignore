@@ -1,0 +1,9 @@
+blender/
+emsdk/
+build*/
+deps/
+desktop-blender/
+out/
+node_modules/
+*.blend1
+.DS_Store
