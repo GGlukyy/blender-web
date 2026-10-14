@@ -8,7 +8,7 @@ Agent (Claude) má svoje pravidla v `CLAUDE.md`. Ty máš tenhle soubor.
 ## 1. Jak to celé funguje (v 5 větách)
 
 1. Repo na GitHubu obsahuje **plán** (milníky), **pravidla** pro agenta a **testy**.
-2. Každý všední den ráno (7:15) se na GitHubu v cloudu spustí počítač (**GitHub Actions**), na kterém pracuje Claude.
+2. Každou noc před školním dnem (~00:30) se na GitHubu v cloudu spustí počítač (**GitHub Actions**), na kterém pracuje Claude.
 3. Claude dělá jeden malý krok aktuálního milníku, otestuje ho a zapíše, co udělal.
 4. Ráno je na GitHubu **Pull Request (PR)** = „návrh změn“, který si přečteš.
 5. Když je PR v pořádku, dáš **Merge** (= přijmout). Když ne, napíšeš komentář `@claude …`.
@@ -84,7 +84,7 @@ Pak už je **neměň**. Celý projekt stojí na jedné verzi.
 ### Krok 5 — Zkušební běh (60 minut)
 GitHub → **Actions** → *Agent run* → **Run workflow** → `minutes` = **60** → Run.
 Za ~1,5 hodiny by měl být v záložce **Pull requests** první PR.
-Pokud ano: hotovo, od teď to jede samo každý všední den, zatímco jsi ve škole. 🎉
+Pokud ano: hotovo, od teď to jede samo každou noc před školou. 🎉
 
 ---
 

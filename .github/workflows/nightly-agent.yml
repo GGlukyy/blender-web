@@ -1,4 +1,4 @@
-# Unattended agent run (weekdays, during school).
+# Unattended agent run (nights before school days).
 # Claude Code works on the CURRENT milestone, commits locally, and this workflow opens a PR.
 #
 # Setup (once): repo secret CLAUDE_CODE_OAUTH_TOKEN  ← run `claude setup-token` on your PC.
@@ -7,9 +7,10 @@ name: Agent run
 
 on:
   schedule:
-    # Po–Pá během školy. GitHub cron je v UTC: 06:15 UTC = 07:15 v zimě (SEČ), 08:15 v létě.
-    # Start se může o pár desítek minut zpozdit (vytížení GitHubu) — to je normální.
-    - cron: "15 6 * * 1-5"
+    # V noci před školními dny (Po–Pá). Cron je v UTC: 23:30 UTC = 00:30 v zimě (SEČ), 01:30 v létě.
+    # "0-4" = neděle–čtvrtek večer v UTC = pondělí–pátek ráno v Praze.
+    # Mimo špičku Claude (všední dny ~14–20 h našeho času) a 5h limit se do školy obnoví.
+    - cron: "30 23 * * 0-4"
   workflow_dispatch:
     inputs:
       minutes:
