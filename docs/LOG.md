@@ -13,6 +13,15 @@ Nejnovější záznam nahoře. Formát:
 
 ---
 
+## 2026-10-14 — M0 — ✅
+- Co se stalo: zkušební běh agenta. Stage `00_sanity` prošla, workflow otevřel PR.
+- Důkaz: `SANITY OK`, `CI ALL PASS`; PR #2.
+- Opravy po testu: skripty spustitelné (Windows je zneplatnil), `.ccache/` v `.gitignore`,
+  runner připnutý na `ubuntu-24.04`, agent pokračuje dalšími úkoly až do konce časového limitu.
+- Co dál: M1 (toolchain).
+
+---
+
 ## 2026-10-12 — setup — ✅
 - Co jsem udělal: založena kostra repa (CLAUDE.md, milníky, skripty, workflowy).
 - Důkaz: zatím nic neběželo — první test proběhne v první noci (M0).

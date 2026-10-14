@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   night:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 355            # GitHub-hosted job limit is 360
     env:
       AGENT_MINUTES: ${{ github.event.inputs.minutes || '270' }}

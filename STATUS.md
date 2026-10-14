@@ -1,23 +1,21 @@
 # STATUS
 
-Výsledek poslední noci: — (zatím žádná noc)
+Výsledek poslední noci: ✅ M0 hotový (zkušební běh 2026-10-14: sanity prošla, workflow otevřel PR #2)
 
 ## Aktuální milník
-**CURRENT: M0 — Kostra repa a CI**
+**CURRENT: M1 — Toolchain**
 
 ## Úkoly aktuálního milníku
-- [ ] Ověřit, že `scripts/ci.sh` projde se stage `00_sanity`
-- [ ] Ověřit, že noční workflow doběhne a otevře PR
-- [ ] Doplnit `docs/LOG.md` o první záznam
+- (agent si na začátku M1 rozepíše úkoly sám — viz CLAUDE.md §4.4)
 
 ## Zaseknuto (BLOCKED)
 - nic
 
 ## Co dál
-- Po M0 → M1 (toolchain).
+- M1: Emscripten v pinned verzi přeloží a spustí `tests/toolchain/hello.cpp` (stage `10_toolchain`).
 
 ## Potřebuju od tebe (Lukáši)
 - nic
 
 ## Hotové milníky
-- (zatím žádné)
+- M0 — Kostra repa a CI (2026-10-14)
