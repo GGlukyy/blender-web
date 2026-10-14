@@ -13,8 +13,8 @@ on:
   workflow_dispatch:
     inputs:
       minutes:
-        description: "Agent time budget in minutes (max 300)"
-        default: "300"
+        description: "Agent time budget in minutes (max 270)"
+        default: "270"
 
 concurrency:
   group: nightly-agent
@@ -24,13 +24,14 @@ permissions:
   contents: write
   pull-requests: write
   id-token: write
+  actions: read
 
 jobs:
   night:
     runs-on: ubuntu-latest
     timeout-minutes: 355            # GitHub-hosted job limit is 360
     env:
-      AGENT_MINUTES: ${{ github.event.inputs.minutes || '300' }}
+      AGENT_MINUTES: ${{ github.event.inputs.minutes || '270' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -98,7 +99,7 @@ jobs:
       - name: Claude Code — night shift
         id: agent
         continue-on-error: true      # even if the agent hits a limit, we still save work + open a PR
-        timeout-minutes: 310
+        timeout-minutes: 280
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
@@ -116,8 +117,42 @@ jobs:
           if [ -d blender/.git ]; then tools/save_patch.sh; fi
           if [ -n "$(git status --porcelain)" ]; then
             git add -A
-            git commit -m "Noc ${NIGHT_DATE}: automatické uložení rozdělané práce"
+            git commit -m "Běh ${NIGHT_DATE}: automatické uložení rozdělané práce"
           fi
+
+      # PRs opened with the default GITHUB_TOKEN do not trigger other workflows (ci.yml),
+      # so we verify here and put the result into the PR description.
+      - name: Verify — run enabled CI stages
+        id: verify
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 50
+        run: |
+          set -o pipefail
+          mkdir -p out
+          scripts/ci.sh 2>&1 | tee out/verify.txt
+
+      - name: Build PR description
+        if: always()
+        run: |
+          mkdir -p out
+          {
+            if [ "${{ steps.verify.outcome }}" = "success" ]; then
+              echo "## ✅ CI: všechny zapnuté stage prošly"
+            else
+              echo "## ❌ CI: něco neprošlo — NEMERGUJ, napiš @claude"
+            fi
+            echo
+            echo '```'
+            grep -E "STAGE (PASS|FAIL)|CI ALL PASS" out/verify.txt 2>/dev/null || echo "(žádný výstup)"
+            echo '```'
+            echo
+            echo "Agent: **${{ steps.agent.outcome }}** · Artefakty (logy, screenshoty): v běhu Actions → Artifacts"
+            echo
+            echo "---"
+            echo
+            cat STATUS.md
+          } > out/pr-body.md
 
       - name: Save emsdk + Blender source + desktop Blender
         if: always()
@@ -153,8 +188,8 @@ jobs:
         if: always()
         uses: peter-evans/create-pull-request@v7
         with:
-          branch: night/${{ env.NIGHT_DATE }}-${{ github.run_id }}
-          title: "Noc ${{ env.NIGHT_DATE }} — agent (${{ steps.agent.outcome }})"
-          body-path: STATUS.md
+          branch: run/${{ env.NIGHT_DATE }}-${{ github.run_id }}
+          title: "Běh ${{ env.NIGHT_DATE }} — agent ${{ steps.agent.outcome }}, CI ${{ steps.verify.outcome }}"
+          body-path: out/pr-body.md
           labels: night-run
           delete-branch: true

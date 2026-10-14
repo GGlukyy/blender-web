@@ -24,7 +24,7 @@ Nic se nebuilduje na tvém PC. Celé to běží v cloudu.
 | GitHub účet | ✅ (GGlukyy) | |
 | Claude Pro | ✅ | noční běhy jedou z tvého předplatného |
 | GitHub Desktop | ✅ | na nahrání souborů |
-| **Claude Code** na PC | ✅ | potřeba jen jednou, na propojení s GitHubem |
+| **Claude Desktop** (záložka Code) | ✅ | potřeba jen jednou, na vygenerování tokenu |
 | Node.js 22 | jen pokud chceš něco zkoušet lokálně | |
 
 Nic dalšího (Emscripten, Blender ze zdrojáku…) instalovat **nemusíš**.
@@ -43,20 +43,29 @@ Nic dalšího (Emscripten, Blender ze zdrojáku…) instalovat **nemusíš**.
 
 > ⚠️ Složka `.github` je skrytá. Ve Windows: Průzkumník → Zobrazit → Skryté položky.
 
-### Krok 2 — Propojit Claude s repem
-Otevři terminál ve složce repa a spusť Claude Code:
-```
-claude
-```
-V Claude Code napiš:
-```
-/install-github-app
-```
-a projdi průvodce. Nainstaluje Claude aplikaci do repa a vytvoří token.
-**Na konci zkontroluj** na GitHubu: *Settings → Secrets and variables → Actions*,
-že tam je secret **`CLAUDE_CODE_OAUTH_TOKEN`**.
-Pokud se jmenuje jinak, ručně: v terminálu `claude setup-token` a výsledek ulož
-jako nový secret s tímhle přesným jménem.
+### Krok 2 — Propojit Claude s repem (přes Claude Desktop)
+**2a. Nainstaluj Claude GitHub App** (v prohlížeči)
+- Otevři https://github.com/apps/claude → **Install** → *Only select repositories* → `blender-web` → Install.
+
+**2b. Vygeneruj token z tvého předplatného** (Claude Desktop → záložka **Code**)
+- Nová session → prostředí **Local** → složka `blender-web`.
+- Otevři terminál v session: tlačítko **Terminal** nahoře, nebo **Ctrl + `**.
+- Napiš `claude setup-token` a potvrď v prohlížeči.
+- Pokud terminál napíše, že `claude` nezná: napiš Claudovi do chatu
+  *„nainstaluj mi Claude Code CLI přes npm“* a pak to zkus znovu.
+- Terminál vypíše dlouhý token (začíná `sk-ant-oat…`). **Zkopíruj ho.**
+
+> 🔒 Token je jako heslo k tvému Claude předplatnému. **Nevkládej ho do žádného chatu**
+> (ani Claudovi), jen do GitHub secretu v dalším kroku.
+
+**2c. Ulož token do repa**
+- GitHub → repo → *Settings → Secrets and variables → Actions* → **New repository secret**
+- Name: **`CLAUDE_CODE_OAUTH_TOKEN`** (přesně takhle)
+- Secret: vlož token → **Add secret**.
+
+*(Alternativa: do promptu v Claude Desktop napsat `/install-github-app`. Potřebuje ale
+nainstalované GitHub CLI a na konci vytvoří vlastní PR s `claude.yml` — ten PR pak **zavři,
+nemerguj**, máme vlastní workflowy.)*
 
 ### Krok 3 — Povolit Actions psát a dělat PR
 GitHub → repo → *Settings → Actions → General*:
@@ -83,7 +92,7 @@ Pokud ano: hotovo, od teď to jede samo každý všední den, zatímco jsi ve š
 
 1. Otevři PR „Noc …“. **Popis PR = STATUS.md.**
 2. Přečti **první řádek** (✅ / 🟡 / 🔴) a sekci **„Potřebuju od tebe“**.
-3. Podívej se dole na **checks**: je CI zelené? ✅
+3. **Úplně nahoře v popisu PR** je výsledek testů: `✅ CI` nebo `❌ CI`.
 4. Když agent vyrobil obrázky (od M8), stáhni je: *Actions → běh → Artifacts*.
 5. Rozhodni:
    - ✅ zelené + dává to smysl → **Merge** (Squash and merge).
@@ -91,7 +100,7 @@ Pokud ano: hotovo, od teď to jede samo každý všední den, zatímco jsi ve š
    - 🔴 špatný směr → komentář s tím, co chceš jinak, **nemerguj**, PR zavři.
 
 ### Pravidla pro tebe (důležité)
-- **Nikdy nemerguj červené CI.**
+- **Nikdy nemerguj PR s `❌ CI`.**
 - **Nikdy nemerguj PR**, kde agent mění referenční obrázky, toleranci testů nebo
   `CLAUDE.md`, pokud to sám nevysvětlil a ty s tím nesouhlasíš.
 - **3 noci po sobě 🔴 na stejné věci** → zastav to (Actions → Agent run → ⋯ → Disable)
@@ -164,7 +173,7 @@ Tip: když v PR něčemu nerozumíš, napiš do komentáře
 
 | Příznak | Pravděpodobná příčina | Co udělat |
 |---|---|---|
-| Workflow spadne hned na kroku Claude | chybí / špatný secret | Krok 2 znovu |
+| Workflow spadne hned na kroku Claude | chybí / špatný secret, nebo není nainstalovaná GitHub App | Krok 2 znovu |
 | „Resource not accessible by integration“ | Actions nesmí psát | Krok 3 |
 | Chyba typu „unexpected input“ u Claude kroku | změnil se formát oficiální action | otevři README `anthropics/claude-code-action` a uprav vstupy (nebo se zeptej Clauda v chatu) |
 | PR se nevytvořil | nic se nezměnilo, nebo chybí oprávnění PR | Krok 3, podívej se do logu běhu |
