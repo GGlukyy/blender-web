@@ -56,7 +56,24 @@ dep_openexr() { build_cmake openexr . -DBUILD_TESTING=OFF -DOPENEXR_BUILD_TOOLS=
   -DOPENEXR_BUILD_EXAMPLES=OFF -DOPENEXR_FORCE_INTERNAL_DEFLATE=OFF -DOPENEXR_FORCE_INTERNAL_IMATH=OFF \
   -DOPENEXR_FORCE_INTERNAL_OPENJPH=OFF -DOPENEXR_ENABLE_THREADING=ON -DOPENEXR_INSTALL_PKG_CONFIG=OFF; }
 
-ALL=(zstd fmt eigen imath deflate openjph openexr)
+dep_expat()   { build_cmake expat expat -DEXPAT_BUILD_TOOLS=OFF -DEXPAT_BUILD_EXAMPLES=OFF -DEXPAT_BUILD_TESTS=OFF -DEXPAT_BUILD_DOCS=OFF -DEXPAT_SHARED_LIBS=OFF; }
+dep_yamlcpp() { build_cmake yamlcpp . -DYAML_CPP_BUILD_TESTS=OFF -DYAML_CPP_BUILD_TOOLS=OFF -DYAML_CPP_BUILD_CONTRIB=OFF -DYAML_BUILD_SHARED_LIBS=OFF; }
+dep_pystring() { # upstream has no CMakeLists; Blender ships one
+  local d; d="$(fetch pystring)"
+  cp "$ROOT/blender/build_files/build_environment/patches/cmakelists_pystring.txt" "$d/CMakeLists.txt"
+  build_cmake pystring .
+  mkdir -p "$PREFIX/include/pystring"; cp "$d/pystring.h" "$PREFIX/include/pystring/"
+}
+dep_minizipng() { build_cmake minizipng . -DMZ_COMPAT=ON -DMZ_ZLIB=ON -DMZ_BZIP2=OFF -DMZ_LZMA=OFF -DMZ_ZSTD=OFF -DMZ_LIBCOMP=OFF -DMZ_PKCRYPT=OFF -DMZ_WZAES=OFF -DMZ_OPENSSL=OFF -DMZ_ICONV=OFF -DMZ_SIGNING=OFF -DMZ_FETCH_LIBS=OFF -DMZ_FORCE_FETCH_LIBS=OFF; }
+
+dep_opencolorio() { build_cmake opencolorio . -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD_PYTHON=OFF -DOCIO_BUILD_NUKE=OFF -DOCIO_BUILD_JAVA=OFF \
+  -DOCIO_BUILD_DOCS=OFF -DOCIO_BUILD_TESTS=OFF -DOCIO_BUILD_GPU_TESTS=OFF -DOCIO_USE_SIMD=OFF -DOCIO_USE_SSE2=OFF \
+  -DOCIO_USE_SSE3=OFF -DOCIO_USE_SSSE3=OFF -DOCIO_USE_SSE4=OFF -DOCIO_USE_SSE42=OFF -DOCIO_USE_AVX=OFF -DOCIO_USE_AVX2=OFF \
+  -DOCIO_USE_F16C=OFF -DOCIO_USE_OPENEXR_HALF=ON -DOCIO_INSTALL_EXT_PACKAGES=NONE -DOCIO_WARNING_AS_ERROR=OFF \
+  -Dexpat_ROOT="$PREFIX" -Dyaml-cpp_ROOT="$PREFIX" -Dpystring_ROOT="$PREFIX" -DImath_ROOT="$PREFIX" \
+  -Dminizip-ng_INCLUDE_DIR="$PREFIX/include/minizip" -Dminizip-ng_LIBRARY="$PREFIX/lib/libminizip.a"; }
+
+ALL=(zstd fmt eigen imath deflate openjph openexr expat yamlcpp pystring minizipng opencolorio)
 targets=("$@"); [[ ${#targets[@]} -eq 0 ]] && targets=("${ALL[@]}")
 for t in "${targets[@]}"; do
   if [[ -f "$PREFIX/.done-$t" ]]; then echo "== $t already built"; continue; fi
