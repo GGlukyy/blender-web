@@ -1,0 +1,245 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 141fdaf9..8a6ac60b 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1538,7 +1538,9 @@ endif()
+ # - WIN32
+ # - APPLE
+ 
+-if(UNIX AND NOT APPLE)
++if(EMSCRIPTEN)
++  include(platform_wasm)
++elseif(UNIX AND NOT APPLE)
+   include(platform_unix)
+ elseif(WIN32)
+   include(platform_win32)
+diff --git a/build_files/cmake/platform/platform_wasm.cmake b/build_files/cmake/platform/platform_wasm.cmake
+new file mode 100644
+index 00000000..8827d971
+--- /dev/null
++++ b/build_files/cmake/platform/platform_wasm.cmake
+@@ -0,0 +1,108 @@
++# SPDX-FileCopyrightText: 2026 Blender Web port
++#
++# SPDX-License-Identifier: GPL-2.0-or-later
++
++# Platform configuration for Emscripten / WebAssembly (blender-web port).
++#
++# Libraries are NOT searched on the system. They come either from Emscripten ports
++# (zlib, freetype, SDL3) or from WASM_DEPS_PREFIX (built in milestone M4).
++# Run scripts/build_deps.sh first.
++
++# Prefix with wasm-built libraries (plain variable on purpose: a stale cached value is a trap).
++set(WASM_DEPS_PREFIX "${CMAKE_SOURCE_DIR}/../deps/wasm")
++get_filename_component(WASM_DEPS_PREFIX "${WASM_DEPS_PREFIX}" REALPATH)
++set(_inc "${WASM_DEPS_PREFIX}/include")
++set(_lib "${WASM_DEPS_PREFIX}/lib")
++set(WITH_STATIC_LIBS ON)
++file(MAKE_DIRECTORY "${WASM_DEPS_PREFIX}/include" "${WASM_DEPS_PREFIX}/lib" "${WASM_DEPS_PREFIX}/bin")
++
++# --- Emscripten ports -------------------------------------------------------
++set(EM_PORT_FLAGS "--use-port=zlib" "--use-port=freetype" "--use-port=sdl3")
++add_compile_options(${EM_PORT_FLAGS} -sMEMORY64=1)
++add_link_options(${EM_PORT_FLAGS} -sMEMORY64=1)
++set(_em_sysroot_inc "${EMSCRIPTEN_SYSROOT}/include")
++
++set(JPEG_FOUND TRUE)
++set(PNG_FOUND TRUE)
++set(ZLIB_FOUND TRUE)
++set(ZLIB_INCLUDE_DIRS "${_em_sysroot_inc}")
++set(ZLIB_LIBRARIES "")
++set(FREETYPE_FOUND TRUE)
++set(FREETYPE_INCLUDE_DIRS "${_em_sysroot_inc}/freetype2")
++set(FREETYPE_LIBRARIES "")
++set(BROTLI_LIBRARIES "")
++
++# --- Libraries built by scripts/build_deps.sh into WASM_DEPS_PREFIX -----------
++list(APPEND CMAKE_FIND_ROOT_PATH "${WASM_DEPS_PREFIX}")
++list(APPEND CMAKE_PREFIX_PATH "${WASM_DEPS_PREFIX}")
++
++# JPEG and PNG come from the prefix (libjpeg-turbo / libpng), NOT from the Emscripten ports,
++# so OpenImageIO and Blender link the same copy.
++set(JPEG_INCLUDE_DIR "${_inc}")
++set(JPEG_LIBRARIES "${_lib}/libjpeg.a")
++set(PNG_PNG_INCLUDE_DIR "${_inc}")
++set(PNG_INCLUDE_DIRS "${_inc}")
++set(PNG_LIBRARIES "${_lib}/libpng16.a")
++
++set(ZSTD_FOUND TRUE)
++set(ZSTD_INCLUDE_DIRS "${_inc}")
++set(ZSTD_LIBRARIES "${_lib}/libzstd.a")
++# Epoxy (OpenGL loader) is not used by the WebGPU backend.
++set(EPOXY_FOUND FALSE)
++set(EPOXY_INCLUDE_DIRS "")
++set(EPOXY_LIBRARIES "")
++
++find_package(Eigen3 REQUIRED CONFIG PATHS "${WASM_DEPS_PREFIX}/share/eigen3/cmake" NO_DEFAULT_PATH)
++find_package(fmt REQUIRED CONFIG)
++find_package(Imath REQUIRED CONFIG)
++find_package(OpenEXR REQUIRED CONFIG)
++find_package(OpenColorIO REQUIRED CONFIG)
++find_package(OpenImageIO REQUIRED CONFIG)
++set(SDL3_FOUND TRUE)
++if(NOT TARGET SDL3::SDL3)
++  add_library(SDL3::SDL3 INTERFACE IMPORTED)
++endif()
++if(NOT TARGET OpenImageIO::oiiotool)
++  # Only used to locate the tool for tests; we don't build it for wasm.
++  add_executable(OpenImageIO::oiiotool IMPORTED)
++  set_target_properties(OpenImageIO::oiiotool PROPERTIES IMPORTED_LOCATION "${WASM_DEPS_PREFIX}/bin/oiiotool")
++endif()
++
++# Host Python: only used to run build-time code generators (not the Python inside Blender).
++find_program(PYTHON_EXECUTABLE python3 NO_CMAKE_FIND_ROOT_PATH)
++
++# --- Threads, platform libs -------------------------------------------------
++list(APPEND PLATFORM_LINKLIBS -lm)
++find_package(Threads)
++if(CMAKE_THREAD_LIBS_INIT)
++  set(PTHREADS_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
++endif()
++add_definitions(-D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE)
++
++set(PLATFORM_CFLAGS "-pthread -sMEMORY64=1 -funsigned-char -fno-strict-aliasing")
++option(WITH_WASM_NODE_TARGET "Build executables to run in Node (headless, M5). OFF = browser build." ON)
++set(PLATFORM_LINKFLAGS "-pthread -sMEMORY64=1 -sPROXY_TO_PTHREAD -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB")
++if(WITH_WASM_NODE_TARGET)
++  # Node with the real file system, so build-time tools (makesdna, datatoc, …) can write files.
++  set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -sENVIRONMENT=node -sNODERAWFS=1 -sEXIT_RUNTIME=1")
++  # Build-time tools (datatoc, makesdna, …) are separate executables: they need it too.
++  add_link_options(-sENVIRONMENT=node -sNODERAWFS=1 -sEXIT_RUNTIME=1 -sALLOW_MEMORY_GROWTH=1)
++  # Emscripten emits a plain .js file; Blender's build runs generators directly, so
++  # add a shebang + exec bit after every executable link.
++  # wasm64 needs Node >= 24 (the one from emsdk), not the system Node.
++  if(DEFINED ENV{EMSDK_NODE})
++    set(_wasm_node "$ENV{EMSDK_NODE}")
++  else()
++    set(_wasm_node "/usr/bin/env node")
++  endif()
++  foreach(_lang C CXX)
++    set(CMAKE_${_lang}_LINK_EXECUTABLE
++      "${CMAKE_${_lang}_LINK_EXECUTABLE}"
++      "sh -c \"sed -i '1i #!${_wasm_node}' <TARGET> && chmod +x <TARGET>\""
++    )
++  endforeach()
++endif()
++
++unset(_inc)
++unset(_lib)
++unset(_em_sysroot_inc)
+diff --git a/intern/ghost/intern/GHOST_ContextSDL.cc b/intern/ghost/intern/GHOST_ContextSDL.cc
+index 24727001..ba008740 100644
+--- a/intern/ghost/intern/GHOST_ContextSDL.cc
++++ b/intern/ghost/intern/GHOST_ContextSDL.cc
+@@ -139,7 +139,9 @@ GHOST_TSuccess GHOST_ContextSDL::initializeDrawingContext()
+       }
+     }
+ 
++#ifdef WITH_OPENGL_BACKEND
+     initClearGL();
++#endif
+     SDL_GL_SwapWindow(window_);
+ 
+     active_context_ = this;
+diff --git a/intern/guardedalloc/intern/mallocn_intern.hh b/intern/guardedalloc/intern/mallocn_intern.hh
+index 5474cf6b..10beb704 100644
+--- a/intern/guardedalloc/intern/mallocn_intern.hh
++++ b/intern/guardedalloc/intern/mallocn_intern.hh
+@@ -21,7 +21,9 @@
+ 
+ #if defined(HAVE_MALLOC_STATS_H)
+ #  include <malloc.h>
+-#  define HAVE_MALLOC_STATS
++#  ifndef __EMSCRIPTEN__ /* declared in the header, but not implemented */
++#    define HAVE_MALLOC_STATS
++#  endif
+ #elif defined(__FreeBSD__)
+ #  include <malloc_np.h>
+ #elif defined(__NetBSD__) || defined(__OpenBSD__)
+diff --git a/source/blender/asset_system/intern/disk_file_hash_service.cc b/source/blender/asset_system/intern/disk_file_hash_service.cc
+index 3807c939..c2a0233b 100644
+--- a/source/blender/asset_system/intern/disk_file_hash_service.cc
++++ b/source/blender/asset_system/intern/disk_file_hash_service.cc
+@@ -100,7 +100,7 @@ _result = service.get_hash(Path(filepath), hash_algorithm)
+ 
+   return hash_value;
+ #else
+-  UNUSED_VARS(C, hash_algorithm);
++  UNUSED_VARS(hash_algorithm);
+   const std::string filepath_str = filepath;
+   CLOG_ERROR(&LOG,
+              "Blender was built without Python support, cannot compute hash for file [%s]",
+@@ -171,7 +171,7 @@ _result = service.file_matches(Path(filepath), hash_algorithm, hexhash, size_in_
+ 
+   return is_match;
+ #else
+-  UNUSED_VARS(C, hash_algorithm, hexhash, size_in_bytes);
++  UNUSED_VARS(hash_algorithm, hexhash, size_in_bytes);
+   const std::string filepath_str = filepath;
+   CLOG_ERROR(&LOG,
+              "Blender was built without Python support, cannot check hash for file [%s]",
+diff --git a/source/blender/blenlib/intern/expr_pylike_eval.cc b/source/blender/blenlib/intern/expr_pylike_eval.cc
+index 7919ff10..f79ca356 100644
+--- a/source/blender/blenlib/intern/expr_pylike_eval.cc
++++ b/source/blender/blenlib/intern/expr_pylike_eval.cc
+@@ -28,6 +28,16 @@
+ 
+ #include <cctype>
+ #include <cfenv>
++
++#ifdef __EMSCRIPTEN__
++/* Emscripten has no floating point exception flags: errors are then not detected by flags. */
++#  ifndef FE_DIVBYZERO
++#    define FE_DIVBYZERO 0
++#  endif
++#  ifndef FE_INVALID
++#    define FE_INVALID 0
++#  endif
++#endif
+ #include <cmath>
+ #include <cstddef>
+ #include <cstdlib>
+diff --git a/source/blender/blenlib/intern/storage.cc b/source/blender/blenlib/intern/storage.cc
+index 13c4e1bb..aa2441dc 100644
+--- a/source/blender/blenlib/intern/storage.cc
++++ b/source/blender/blenlib/intern/storage.cc
+@@ -14,7 +14,8 @@
+ 
+ #include <sys/stat.h>
+ 
+-#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__HAIKU__)
++#if defined(__NetBSD__) || defined(__OpenBSD__) || defined(__DragonFly__) || defined(__HAIKU__) || \
++    defined(__EMSCRIPTEN__)
+ /* Other modern unix OS's should probably use this also. */
+ #  include <sys/statvfs.h>
+ #  define USE_STATFS_STATVFS
+diff --git a/source/blender/editors/interface/interface_handlers.cc b/source/blender/editors/interface/interface_handlers.cc
+index cc549e7f..0733b165 100644
+--- a/source/blender/editors/interface/interface_handlers.cc
++++ b/source/blender/editors/interface/interface_handlers.cc
+@@ -3720,10 +3720,12 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
+     }
+ 
+     /* If the expression we're entering is not valid, don't show the hint. */
++#ifdef WITH_PYTHON
+     if (!BPY_string_compile_check(data->text_edit.edit_string)) {
+       data->text_edit_unit_hint.clear();
+       return;
+     }
++#endif
+ 
+     const void *usys;
+     int len;
+@@ -3746,10 +3748,12 @@ static void button_edit_unit_hint_refresh(bContext *C, Button *but, HandleButton
+     }
+ 
+     /* If the expression we're entering is not valid, don't show the hint. */
++#ifdef WITH_PYTHON
+     if (!BPY_string_compile_check(data->text_edit.edit_string)) {
+       data->text_edit_unit_hint.clear();
+       return;
+     }
++#endif
+   }
+ 
+   if (name_short.empty()) {
