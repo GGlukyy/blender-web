@@ -1,3 +1,4 @@
 # Stages that CI runs, in order. One per line (file name in scripts/stages/ without .sh).
 # The agent adds a stage here only after it has passed once (CLAUDE.md §4.7).
 00_sanity
+10_toolchain
