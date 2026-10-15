@@ -11,6 +11,13 @@ Nejnovější záznam nahoře. Formát:
 - Potřebuju od tebe:
 ```
 
+## 2026-10-15 — M1+M2 — ✅
+- Co jsem udělal: M1 a M2 hotové.
+- Oprava: `10_toolchain.sh` používal `emcc` (nelinkuje C++ knihovnu) → změněno na `em++`.
+- Důkaz: `HELLO FROM WASM, threads=OK`, `TOOLCHAIN OK`, `BLENDER SOURCE OK v5.2.2`, `REFERENCES OK`.
+- Co dál: M3 (CMake konfigurace pro wasm).
+- Potřebuju od tebe: nic.
+
 ---
 
 ## 2026-10-14 — M0 — ✅

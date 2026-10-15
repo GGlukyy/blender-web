@@ -2,3 +2,5 @@
 # The agent adds a stage here only after it has passed once (CLAUDE.md §4.7).
 00_sanity
 10_toolchain
+20_blender_source
+25_references
