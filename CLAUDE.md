@@ -65,6 +65,7 @@ STATUS.md                 ← current state. Update EVERY night (Czech).
 versions.env              ← pinned versions (Blender tag, emsdk, Node…). Do not change.
 docs/MILESTONES.md        ← the plan + Definition of Done for each milestone.
 docs/LOG.md               ← append-only night log (Czech). Newest entry on top.
+docs/LESSONS.md           ← permanent lessons learned. Read every night, append when you lose >15 min.
 docs/REFERENCES.md        ← where to look (Blender source paths, external projects).
 docs/THIRD_PARTY.md       ← every external code/tool you use + its license.
 docs/decisions/           ← short decision records (ADR). Template: 0000-template.md.
@@ -105,7 +106,7 @@ your work is lost.
 
 ## 4. A night, step by step
 
-1. `cat STATUS.md docs/MILESTONES.md` and the last 3 entries of `docs/LOG.md`.
+1. `cat STATUS.md docs/MILESTONES.md docs/LESSONS.md` and the last 3 entries of `docs/LOG.md`.
 2. `tools/time_left.sh` — you have a hard deadline. Plan for it.
 3. Prepare the environment (cached, usually fast):
    `scripts/setup_emsdk.sh && source emsdk/emsdk_env.sh && scripts/prepare_blender.sh`
@@ -180,3 +181,19 @@ Lukáš reads these on his phone after school. Make them **fast to scan**:
   and **`Potřebuju od tebe:`** — concrete decisions or checks for Lukáš (or "nic").
 - Explain anything new in one plain sentence ("Tint = nástroj, co překládá shadery do jazyka WebGPU").
 - Never pretend. If you guessed, write "odhad".
+
+---
+
+## 9. Getting a second opinion: the `architect` subagent (Opus)
+
+You normally run on a cheaper model. For hard decisions, delegate to the **`architect`**
+subagent (`.claude/agents/architect.md`, runs on Opus with high effort) via the Agent tool.
+Use it when:
+- the same problem failed **2 times** (before the 3-attempt stuck rule kicks in),
+- you are about to **design** something new (WebGPU backend, shader pipeline, Python in wasm, input),
+- a change would touch a widely-included header or force a **full rebuild**,
+- you must choose between approaches (write the result as an ADR).
+
+Give it: goal, what you tried, exact error lines, file paths. It returns a plan; you implement.
+Don't call it for routine work — it costs more. Note each consultation in LOG.md
+(`architect: <question> → <decision>`).

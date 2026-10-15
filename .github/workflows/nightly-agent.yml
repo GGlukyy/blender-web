@@ -127,7 +127,7 @@ jobs:
             --model ${{ env.AGENT_MODEL }}
             --effort ${{ env.AGENT_EFFORT }}
             --max-turns 500
-            --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite"
+            --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Agent,Task"
 
       # ---------- save everything, even after failure ----------
       - name: Save patch if the agent forgot
