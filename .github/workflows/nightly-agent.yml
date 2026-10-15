@@ -7,10 +7,12 @@ name: Agent run
 
 on:
   schedule:
-    # V noci před školními dny (Po–Pá). Cron je v UTC: 23:30 UTC = 00:30 v zimě (SEČ), 01:30 v létě.
-    # "0-4" = neděle–čtvrtek večer v UTC = pondělí–pátek ráno v Praze.
-    # Mimo špičku Claude (všední dny ~14–20 h našeho času) a 5h limit se do školy obnoví.
-    - cron: "30 23 * * 0-4"
+    # Dva běhy denně, i o víkendu. Cron je v UTC (Praha v zimě = UTC+1, v létě UTC+2):
+    #   19:15 UTC = večer 20:15 v zimě / 21:15 v létě (po špičce Claude ~14–20 h)
+    #   23:30 UTC = noc 00:30 v zimě / 01:30 v létě
+    # Když večerní běh ještě běží, noční počká ve frontě (concurrency) a začne po něm.
+    - cron: "15 19 * * *"
+    - cron: "30 23 * * *"
   workflow_dispatch:
     inputs:
       minutes:
@@ -236,6 +238,7 @@ jobs:
           retention-days: 14
 
       - name: Open Pull Request for review
+        id: cpr
         if: always()
         uses: peter-evans/create-pull-request@v7
         with:
@@ -244,3 +247,13 @@ jobs:
           body-path: out/pr-body.md
           labels: night-run
           delete-branch: true
+
+      # Green work goes straight to main, so the next run continues from it.
+      # Red runs stay as an open PR for Lukáš (+ backup bundle in artifacts).
+      - name: Auto-merge when CI is green
+        if: always() && steps.verify.outcome == 'success' && steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge "${{ steps.cpr.outputs.pull-request-number }}" --squash --delete-branch --repo "${{ github.repository }}"
+          echo "Merged PR #${{ steps.cpr.outputs.pull-request-number }}"

@@ -117,7 +117,10 @@ your work is lost.
 6. When `tools/time_left.sh` says **< 40 min**: stop coding. Run `scripts/ci.sh`,
    `tools/save_patch.sh`, update STATUS.md + LOG.md, final commit. Do **not** push —
    the workflow pushes and opens the PR for you.
-7. If the milestone's Definition of Done passes: mark it DONE in STATUS.md, add its stage to
+7. Runs happen **twice a day** (evening + night). If `scripts/ci.sh` passes at the end, your PR is
+   **merged automatically** and the next run continues from it. So: end every run green and keep
+   STATUS.md honest — Lukáš may only read it days later. A red run stays as an open PR.
+8. If the milestone's Definition of Done passes: mark it DONE in STATUS.md, add its stage to
    `ci-stages.txt`, set the next milestone as CURRENT, and say so clearly in the PR.
 
 ### Build speed

@@ -90,6 +90,10 @@ Pokud ano: hotovo, od teď to jede samo každou noc před školou. 🎉
 
 ## 4. Tvoje odpolední rutina (15–30 min)
 
+> **Od 15. 10.:** agent běží **2× denně i o víkendu** (večer ~20:15, v noci ~00:30) a když
+> testy projdou (`✅ CI`), **PR se mergne sám**. Ty řešíš jen PR, které zůstanou otevřené (`❌ CI`).
+> Co se děje, vidíš v `STATUS.md` nebo v zavřených PR (Pull requests → Closed).
+
 1. Otevři PR „Noc …“. **Popis PR = STATUS.md.**
 2. Přečti **první řádek** (✅ / 🟡 / 🔴) a sekci **„Potřebuju od tebe“**.
 3. **Úplně nahoře v popisu PR** je výsledek testů: `✅ CI` nebo `❌ CI`.
