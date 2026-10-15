@@ -16,6 +16,16 @@ on:
       minutes:
         description: "Agent time budget in minutes (max 270)"
         default: "270"
+      model:
+        description: "Model: sonnet = rychlý a šetří limity · opus = chytřejší na těžké problémy (rychleji bere limity)"
+        type: choice
+        options: [sonnet, opus]
+        default: sonnet
+      effort:
+        description: "Jak moc přemýšlí: medium = běžně · high = těžké problémy"
+        type: choice
+        options: [medium, high]
+        default: medium
 
 concurrency:
   group: nightly-agent
@@ -33,6 +43,9 @@ jobs:
     timeout-minutes: 355            # GitHub-hosted job limit is 360
     env:
       AGENT_MINUTES: ${{ github.event.inputs.minutes || '270' }}
+      # Scheduled (night) runs always use sonnet + medium.
+      AGENT_MODEL: ${{ github.event.inputs.model || 'sonnet' }}
+      AGENT_EFFORT: ${{ github.event.inputs.effort || 'medium' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -111,6 +124,8 @@ jobs:
             Read .github/agent/nightly-prompt.md and do exactly what it says.
             Tonight's date (UTC) is ${{ env.NIGHT_DATE }}.
           claude_args: >-
+            --model ${{ env.AGENT_MODEL }}
+            --effort ${{ env.AGENT_EFFORT }}
             --max-turns 500
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite"
 
@@ -193,7 +208,7 @@ jobs:
         uses: peter-evans/create-pull-request@v7
         with:
           branch: run/${{ env.NIGHT_DATE }}-${{ github.run_id }}
-          title: "Běh ${{ env.NIGHT_DATE }} — agent ${{ steps.agent.outcome }}, CI ${{ steps.verify.outcome }}"
+          title: "Běh ${{ env.NIGHT_DATE }} (${{ env.AGENT_MODEL }}/${{ env.AGENT_EFFORT }}) — agent ${{ steps.agent.outcome }}, CI ${{ steps.verify.outcome }}"
           body-path: out/pr-body.md
           labels: night-run
           delete-branch: true

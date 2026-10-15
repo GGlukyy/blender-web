@@ -108,6 +108,16 @@ Pokud ano: hotovo, od teď to jede samo každou noc před školou. 🎉
 
 ---
 
+### Ruční spuštění a volba modelu
+*Actions → Agent run → Run workflow* má tři volby:
+- `minutes` — kolik času agent dostane (max 270).
+- `model` — **sonnet** (výchozí, rychlý, šetří limity) nebo **opus** (chytřejší, rychleji bere limity).
+- `effort` — **medium** (běžně) nebo **high** (těžké problémy).
+
+Noční běhy jedou vždy na sonnet/medium. **Opus + high** pouštěj ručně, když agent u stejného
+problému stojí 2–3 noci, nebo u těžkých milníků (M8–M10: WebGPU backend a shadery).
+Nejlépe večer po 20:00 (mimo špičku) a nejdřív **mergni poslední PR**, ať agent začne z aktuálního stavu.
+
 ## 5. Co realisticky čekat
 
 - **První 1–2 týdny** = infrastruktura (M0–M4). Žádné obrázky, jen „build prošel“. To je normální.
