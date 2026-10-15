@@ -18,3 +18,9 @@ set(WITH_GTESTS OFF CACHE BOOL "" FORCE)
 set(WITH_OPENMP OFF CACHE BOOL "" FORCE)
 set(WITH_JEMALLOC OFF CACHE BOOL "" FORCE)
 set(WITH_MEM_JEMALLOC OFF CACHE BOOL "" FORCE)
+
+# wasm64 (ADR-0003): must be in the flags from the very first compiler check,
+# otherwise CMake thinks pointers are 4 bytes and rejects 64-bit libraries.
+set(CMAKE_C_FLAGS "-pthread -sMEMORY64=1" CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS "-pthread -sMEMORY64=1" CACHE STRING "" FORCE)
+set(CMAKE_EXE_LINKER_FLAGS "-pthread -sMEMORY64=1" CACHE STRING "" FORCE)

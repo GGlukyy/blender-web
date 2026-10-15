@@ -13,6 +13,8 @@ PREFIX="$ROOT/deps/wasm"
 SRC="$ROOT/deps/src"
 BLD="$ROOT/deps/build"
 mkdir -p "$PREFIX" "$SRC" "$BLD"
+# Emscripten ports for wasm64 (zlib is found by FindZLIB in the sysroot, so build it up front).
+embuilder build zlib freetype sdl3 --wasm64 >/dev/null 2>&1
 
 # ver NAME_FIELD → value from versions.cmake, ${X} references resolved for URI
 ver() { grep -E "^set\($1 " "$VERS" | head -1 | sed -E 's/^set\([A-Z0-9_]+ +//; s/\) *(#.*)?$//'; }
@@ -33,10 +35,14 @@ fetch() { # fetch NAME → extracts into deps/src/NAME, prints dir
   fi
   echo "$dir"
 }
-CMAKE_COMMON=(-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX"
+# Emscripten's CMake toolchain only knows the wasm32 library dir; point FindZLIB at the wasm64 port.
+SYSROOT="$ROOT/emsdk/upstream/emscripten/cache/sysroot"
+CMAKE_COMMON=(-DZLIB_LIBRARY="$SYSROOT/lib/wasm64-emscripten/libz.a" -DZLIB_INCLUDE_DIR="$SYSROOT/include"
+  -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$PREFIX"
   -DCMAKE_PREFIX_PATH="$PREFIX" -DCMAKE_FIND_ROOT_PATH="$PREFIX" -DBUILD_SHARED_LIBS=OFF
   -DCMAKE_POSITION_INDEPENDENT_CODE=OFF
-  -DCMAKE_C_FLAGS="-pthread" -DCMAKE_CXX_FLAGS="-pthread")
+  -DCMAKE_C_FLAGS="-pthread -sMEMORY64=1" -DCMAKE_CXX_FLAGS="-pthread -sMEMORY64=1"
+  -DCMAKE_EXE_LINKER_FLAGS="-pthread -sMEMORY64=1")
 build_cmake() { # build_cmake NAME SUBDIR extra-args…
   local n="$1" sub="$2"; shift 2
   local dir; dir="$(fetch "$n")"
