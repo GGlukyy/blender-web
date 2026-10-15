@@ -151,6 +151,33 @@ jobs:
           mkdir -p out
           scripts/ci.sh 2>&1 | tee out/verify.txt
 
+      # GitHub refuses the push if the branch edits workflow files (GITHUB_TOKEN has no
+      # "workflows" permission) or contains files > 100 MB. Squash the night's work into one
+      # commit without those, and keep a full backup (git bundle) as an artifact.
+      - name: Make the night's work pushable
+        if: always()
+        run: |
+          mkdir -p out
+          BASE=$(git rev-parse "${GITHUB_SHA}")
+          if [ "$(git rev-parse HEAD)" = "$BASE" ]; then echo "no commits"; exit 0; fi
+          git log --oneline "$BASE"..HEAD > out/agent-commits.txt
+          git bundle create out/agent-work.bundle "$BASE"..HEAD || true
+          git reset -q --soft "$BASE"
+          : > out/excluded.txt
+          if ! git diff --cached --quiet -- .github/workflows; then
+            git reset -q -- .github/workflows && git checkout -q -- .github/workflows
+            echo ".github/workflows/* (agent nesmí měnit workflowy — změny jsou v agent-work.bundle)" >> out/excluded.txt
+          fi
+          git diff --cached --name-only --diff-filter=AM | while read -r f; do
+            if [ -f "$f" ] && [ "$(stat -c%s "$f")" -gt 50000000 ]; then
+              echo "$f ($(du -h "$f" | cut -f1), soubor > 50 MB)" >> out/excluded.txt
+              git reset -q -- "$f"; mkdir -p "out/excluded/$(dirname "$f")"; mv "$f" "out/excluded/$f"
+            fi
+          done
+          { echo "Běh ${NIGHT_DATE}: práce agenta"; echo; cat out/agent-commits.txt; } > out/commit-msg.txt
+          git commit -q -F out/commit-msg.txt || echo "nothing left to commit"
+          echo "excluded:"; cat out/excluded.txt
+
       - name: Build PR description
         if: always()
         run: |
@@ -167,6 +194,11 @@ jobs:
             echo '```'
             echo
             echo "Agent: **${{ steps.agent.outcome }}** · Artefakty (logy, screenshoty): v běhu Actions → Artifacts"
+            if [ -s out/excluded.txt ]; then
+              echo
+              echo "⚠️ **Vynecháno z PR** (záloha v artefaktu \`agent-work.bundle\`):"
+              sed 's/^/- /' out/excluded.txt
+            fi
             echo
             echo "---"
             echo
