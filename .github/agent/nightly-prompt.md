@@ -2,7 +2,10 @@ You are starting tonight's unattended work session on the Blender Web port.
 
 1. Read `CLAUDE.md` completely and follow it. It overrides anything else.
 2. Read `STATUS.md`, `docs/MILESTONES.md` and the newest 3 entries in `docs/LOG.md`.
-3. Run `tools/time_left.sh` now and again after every major step.
+3. Check whether caches were restored: `ls deps/wasm/.done-* build-wasm/build.ninja 2>/dev/null | head`.
+   Write one line in LOG.md: `cache: deps HIT/MISS, build-wasm HIT/MISS`. If MISS, mention it in
+   "Potřebuju od tebe" (don't edit workflows).
+   Run `tools/time_left.sh` now and again after every major step.
 4. Work ONLY on the milestone marked CURRENT in STATUS.md. Pick the next unchecked task.
    If the milestone has no task list yet, create one first (3–8 tasks, one night each).
 5. Keep working until the time budget is used. When a task is done, take the next one.

@@ -21,8 +21,7 @@ Výsledek noci: ✅ pokrok — M1–M4 hotové, M5 rozpracovaný (všechno se p�
 - Build: `source emsdk/emsdk_env.sh && cd build-wasm && ninja blender` (cca 60–90 min na 4 jádrech).
 
 ## Potřebuju od tebe (Lukáši)
-- Schválit/zvážit ADR-0003 (wasm64): Chrome to umí, **Safari/iPad zatím ne**.
-- Zvážit cache pro `deps/` a `build-wasm/` v workflow (já workflow nesmím měnit).
+- nic (2026-10-15: ADR-0003 wasm64 **schváleno**; cache pro `deps/` a `build-wasm/` workflow už má — viz LESSONS.md)
 
 ## Hotové milníky
 - M0 — Kostra repa a CI (2026-10-14)
