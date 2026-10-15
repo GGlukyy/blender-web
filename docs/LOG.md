@@ -11,6 +11,17 @@ Nejnovější záznam nahoře. Formát:
 - Potřebuju od tebe:
 ```
 
+## 2026-10-15 — M4 — ✅
+- Co jsem udělal: `scripts/build_deps.sh` přeloží 16 knihoven do `deps/wasm` (verze podle Blenderu), stage `40_deps`.
+- Důkaz: `DEPS OK`, seznam v `out/deps.txt`.
+- OpenImageIO potřeboval malý patch pro Emscripten (`patches/deps/openimageio-emscripten.diff`).
+- JPEG a PNG bereme z vlastního buildu, ne z Emscripten portů (aby OIIO a Blender sdílely jednu kopii).
+- Pozor: `deps/` se v CI musí přeložit od nuly (cca 20–30 min) — workflow necachuje `deps/`.
+  Potřebuju od tebe: zvážit přidání cache pro `deps/` do workflow (já workflow nesmím měnit).
+- Epoxy (OpenGL loader) neřeším, WebGPU ho nepotřebuje.
+
+---
+
 ## 2026-10-15 — M3 — ✅
 - Co jsem udělal: `platform_wasm.cmake` + `blender_wasm_options.cmake`, stage `30_configure`.
 - Důkaz: `CONFIGURE OK` (164 voleb v `out/cmake-options.txt`).

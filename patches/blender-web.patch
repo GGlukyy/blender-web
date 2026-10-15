@@ -15,10 +15,10 @@ index 141fdaf9..8a6ac60b 100644
    include(platform_win32)
 diff --git a/build_files/cmake/platform/platform_wasm.cmake b/build_files/cmake/platform/platform_wasm.cmake
 new file mode 100644
-index 00000000..8ec6be90
+index 00000000..7f2724b8
 --- /dev/null
 +++ b/build_files/cmake/platform/platform_wasm.cmake
-@@ -0,0 +1,98 @@
+@@ -0,0 +1,84 @@
 +# SPDX-FileCopyrightText: 2026 Blender Web port
 +#
 +# SPDX-License-Identifier: GPL-2.0-or-later
@@ -26,28 +26,25 @@ index 00000000..8ec6be90
 +# Platform configuration for Emscripten / WebAssembly (blender-web port).
 +#
 +# Libraries are NOT searched on the system. They come either from Emscripten ports
-+# (zlib, libpng, libjpeg, freetype) or from WASM_DEPS_PREFIX (built in milestone M4).
-+# Until M4 is done the prefix may be empty: configure then succeeds with placeholder paths.
++# (zlib, freetype, SDL3) or from WASM_DEPS_PREFIX (built in milestone M4).
++# Run scripts/build_deps.sh first.
 +
-+set(WASM_DEPS_PREFIX "${CMAKE_BINARY_DIR}/wasm-deps" CACHE PATH "Prefix with wasm-built libraries")
++# Prefix with wasm-built libraries (plain variable on purpose: a stale cached value is a trap).
++set(WASM_DEPS_PREFIX "${CMAKE_SOURCE_DIR}/../deps/wasm")
++get_filename_component(WASM_DEPS_PREFIX "${WASM_DEPS_PREFIX}" REALPATH)
 +set(_inc "${WASM_DEPS_PREFIX}/include")
 +set(_lib "${WASM_DEPS_PREFIX}/lib")
 +set(WITH_STATIC_LIBS ON)
 +file(MAKE_DIRECTORY "${WASM_DEPS_PREFIX}/include" "${WASM_DEPS_PREFIX}/lib" "${WASM_DEPS_PREFIX}/bin")
 +
 +# --- Emscripten ports -------------------------------------------------------
-+set(EM_PORT_FLAGS "--use-port=zlib" "--use-port=libpng" "--use-port=libjpeg" "--use-port=freetype" "--use-port=sdl3")
++set(EM_PORT_FLAGS "--use-port=zlib" "--use-port=freetype" "--use-port=sdl3")
 +add_compile_options(${EM_PORT_FLAGS})
 +add_link_options(${EM_PORT_FLAGS})
 +set(_em_sysroot_inc "${EMSCRIPTEN_SYSROOT}/include")
 +
 +set(JPEG_FOUND TRUE)
-+set(JPEG_INCLUDE_DIR "${_em_sysroot_inc}")
-+set(JPEG_LIBRARIES "")
 +set(PNG_FOUND TRUE)
-+set(PNG_PNG_INCLUDE_DIR "${_em_sysroot_inc}")
-+set(PNG_LIBRARIES "")
-+set(PNG_INCLUDE_DIRS "${_em_sysroot_inc}")
 +set(ZLIB_FOUND TRUE)
 +set(ZLIB_INCLUDE_DIRS "${_em_sysroot_inc}")
 +set(ZLIB_LIBRARIES "")
@@ -56,49 +53,38 @@ index 00000000..8ec6be90
 +set(FREETYPE_LIBRARIES "")
 +set(BROTLI_LIBRARIES "")
 +
-+# --- Libraries to be built in M4 (placeholders) -----------------------------
++# --- Libraries built by scripts/build_deps.sh into WASM_DEPS_PREFIX -----------
++list(APPEND CMAKE_FIND_ROOT_PATH "${WASM_DEPS_PREFIX}")
++list(APPEND CMAKE_PREFIX_PATH "${WASM_DEPS_PREFIX}")
++
++# JPEG and PNG come from the prefix (libjpeg-turbo / libpng), NOT from the Emscripten ports,
++# so OpenImageIO and Blender link the same copy.
++set(JPEG_INCLUDE_DIR "${_inc}")
++set(JPEG_LIBRARIES "${_lib}/libjpeg.a")
++set(PNG_PNG_INCLUDE_DIR "${_inc}")
++set(PNG_INCLUDE_DIRS "${_inc}")
++set(PNG_LIBRARIES "${_lib}/libpng16.a")
++
 +set(ZSTD_FOUND TRUE)
 +set(ZSTD_INCLUDE_DIRS "${_inc}")
 +set(ZSTD_LIBRARIES "${_lib}/libzstd.a")
-+set(EPOXY_FOUND TRUE)
-+set(Epoxy_FOUND TRUE)
-+set(EPOXY_INCLUDE_DIRS "${_inc}")
++# Epoxy (OpenGL loader) is not used by the WebGPU backend.
++set(EPOXY_FOUND FALSE)
++set(EPOXY_INCLUDE_DIRS "")
 +set(EPOXY_LIBRARIES "")
-+set(OPENEXR_FOUND TRUE)
-+set(OPENEXR_INCLUDE_DIRS "${_inc}")
-+set(OPENEXR_LIBRARIES "")
-+set(OPENIMAGEIO_FOUND TRUE)
-+set(OPENIMAGEIO_INCLUDE_DIRS "${_inc}")
-+set(OPENIMAGEIO_LIBRARIES "")
-+set(OPENCOLORIO_FOUND TRUE)
-+set(OPENCOLORIO_INCLUDE_DIRS "${_inc}")
-+set(OPENCOLORIO_LIBRARIES "")
-+set(EIGEN3_FOUND TRUE)
-+set(EIGEN3_INCLUDE_DIRS "${_inc}/eigen3")
-+set(EIGEN3_INCLUDE_DIR "${_inc}/eigen3")
 +
-+# fmt is header-only usable; provide it as an interface target.
-+if(NOT TARGET fmt::fmt)
-+  add_library(fmt::fmt INTERFACE IMPORTED)
-+  set_target_properties(fmt::fmt PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${_inc}")
-+endif()
-+
-+# Imported targets that dependency_targets.cmake aliases. M4 replaces these with real libraries.
-+foreach(_t Eigen3::Eigen SDL3::SDL3)
-+  if(NOT TARGET ${_t})
-+    add_library(${_t} INTERFACE IMPORTED)
-+  endif()
-+endforeach()
-+set_target_properties(Eigen3::Eigen PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${WASM_DEPS_PREFIX}/include")
++find_package(Eigen3 REQUIRED CONFIG PATHS "${WASM_DEPS_PREFIX}/share/eigen3/cmake" NO_DEFAULT_PATH)
++find_package(fmt REQUIRED CONFIG)
++find_package(Imath REQUIRED CONFIG)
++find_package(OpenEXR REQUIRED CONFIG)
++find_package(OpenColorIO REQUIRED CONFIG)
++find_package(OpenImageIO REQUIRED CONFIG)
 +set(SDL3_FOUND TRUE)
-+
-+foreach(_t OpenColorIO::OpenColorIO OpenImageIO::OpenImageIO OpenEXR::OpenEXR)
-+  if(NOT TARGET ${_t})
-+    add_library(${_t} INTERFACE IMPORTED)
-+    set_target_properties(${_t} PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${WASM_DEPS_PREFIX}/include")
-+  endif()
-+endforeach()
++if(NOT TARGET SDL3::SDL3)
++  add_library(SDL3::SDL3 INTERFACE IMPORTED)
++endif()
 +if(NOT TARGET OpenImageIO::oiiotool)
++  # Only used to locate the tool for tests; we don't build it for wasm.
 +  add_executable(OpenImageIO::oiiotool IMPORTED)
 +  set_target_properties(OpenImageIO::oiiotool PROPERTIES IMPORTED_LOCATION "${WASM_DEPS_PREFIX}/bin/oiiotool")
 +endif()

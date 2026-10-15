@@ -73,7 +73,28 @@ dep_opencolorio() { build_cmake opencolorio . -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD
   -Dexpat_ROOT="$PREFIX" -Dyaml-cpp_ROOT="$PREFIX" -Dpystring_ROOT="$PREFIX" -DImath_ROOT="$PREFIX" \
   -Dminizip-ng_INCLUDE_DIR="$PREFIX/include/minizip" -Dminizip-ng_LIBRARY="$PREFIX/lib/libminizip.a"; }
 
-ALL=(zstd fmt eigen imath deflate openjph openexr expat yamlcpp pystring minizipng opencolorio)
+dep_jpeg() { build_cmake jpeg . -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DWITH_SIMD=OFF -DWITH_TURBOJPEG=OFF -DWITH_JAVA=OFF -DWITH_TOOLS=OFF -DWITH_TESTS=OFF -DWITH_FUZZ=OFF; }
+dep_png() { build_cmake png . -DPNG_SHARED=OFF -DPNG_STATIC=ON -DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_FRAMEWORK=OFF -DPNG_HARDWARE_OPTIMIZATIONS=OFF; }
+dep_tiff() { build_cmake tiff . -Dtiff-tools=OFF -Dtiff-tests=OFF -Dtiff-contrib=OFF -Dtiff-docs=OFF -Dtiff-opengl=OFF \
+  -Dlibdeflate=OFF -Dlzma=OFF -Dwebp=OFF -Dzstd=OFF -Djbig=OFF -Dlerc=OFF -Djpeg=OFF -Dold-jpeg=OFF -Dpixarlog=OFF -Dcxx=OFF; }
+dep_robinmap() { build_cmake robinmap . -DBUILD_TESTING=OFF; }
+dep_openimageio() {
+  local d; d="$(fetch openimageio)"
+  if [[ ! -f "$d/.blender-patched" ]]; then
+    local pd="$ROOT/blender/build_files/build_environment/patches"
+    patch -p1 -N -d "$d" < "$pd/openimageio.diff"
+    patch -p1 -N -d "$d" < "$pd/openimageio_dds_3d_5133.diff"
+    patch -p1 -N -d "$d" < "$ROOT/patches/deps/openimageio-emscripten.diff"
+    touch "$d/.blender-patched"
+  fi
+  build_cmake openimageio . -DOIIO_BUILD_TOOLS=OFF -DOIIO_BUILD_TESTS=OFF -DBUILD_TESTING=OFF -DSTOP_ON_WARNING=OFF \
+    -DUSE_PYTHON=OFF -DUSE_TBB=OFF -DUSE_QT=OFF -DUSE_NUKE=OFF -DUSE_OPENVDB=OFF -DUSE_FREETYPE=OFF -DUSE_DCMTK=OFF \
+    -DUSE_GIF=OFF -DUSE_OPENCV=OFF -DUSE_OPENJPEG=OFF -DUSE_FFMPEG=OFF -DUSE_PTEX=OFF -DUSE_LIBHEIF=OFF -DUSE_LIBRAW=OFF \
+    -DUSE_JXL=OFF -DUSE_WEBP=OFF -DUSE_OPENCOLORIO=ON -DUSE_SIMD=0 -Dlibjpeg-turbo_ROOT="$PREFIX" -DJPEG_ROOT="$PREFIX" -DINSTALL_DOCS=OFF \
+    -DOpenImageIO_REQUIRED_DEPS="libjpeg-turbo;TIFF;OpenEXR;PNG;fmt;Robinmap;ZLIB;openjph"
+}
+
+ALL=(zstd fmt eigen imath deflate openjph openexr expat yamlcpp pystring minizipng opencolorio jpeg png tiff robinmap openimageio)
 targets=("$@"); [[ ${#targets[@]} -eq 0 ]] && targets=("${ALL[@]}")
 for t in "${targets[@]}"; do
   if [[ -f "$PREFIX/.done-$t" ]]; then echo "== $t already built"; continue; fi
