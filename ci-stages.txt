@@ -4,3 +4,4 @@
 10_toolchain
 20_blender_source
 25_references
+30_configure

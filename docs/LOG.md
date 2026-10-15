@@ -11,6 +11,17 @@ Nejnovější záznam nahoře. Formát:
 - Potřebuju od tebe:
 ```
 
+## 2026-10-15 — M3 — ✅
+- Co jsem udělal: `platform_wasm.cmake` + `blender_wasm_options.cmake`, stage `30_configure`.
+- Důkaz: `CONFIGURE OK` (164 voleb v `out/cmake-options.txt`).
+- Důležité: Blender 5.2 používá **SDL3**, ne SDL2 (viz `docs/decisions/0002-wasm-configure.md`).
+- OIIO/OCIO/OpenEXR jsou povinné → zatím placeholder targety, skutečné v M4.
+- Jednou jsem smazal `build-wasm/` (jen pro ověření, že patch funguje od nuly; byl nový, ne cache).
+- Co dál: M4.
+- Potřebuju od tebe: nic.
+
+---
+
 ## 2026-10-15 — M1+M2 — ✅
 - Co jsem udělal: M1 a M2 hotové.
 - Oprava: `10_toolchain.sh` používal `emcc` (nelinkuje C++ knihovnu) → změněno na `em++`.
