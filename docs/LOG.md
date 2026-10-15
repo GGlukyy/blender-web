@@ -20,7 +20,10 @@ Nejnovější záznam nahoře. Formát:
   - upstream chyba `UNUSED_VARS(C, …)` v `disk_file_hash_service.cc` při buildu bez Pythonu.
 - Build-tooly (makesdna, datatoc…) běží v Node: shebang + `-sNODERAWFS=1` (v `platform_wasm.cmake`).
 - Důkaz: `CONFIGURE OK`, `DEPS OK`, `TOOLCHAIN OK` (wasm32 i wasm64).
-- Co dál: dokončit link (`ninja blender`), `--version` v Node, stage `50_headless`.
+- Link `blender` poprvé: 3 chyby (málo initial memory, `malloc_stats` neexistuje v Emscripten, `BPY_string_compile_check` bez Pythonu).
+  Všechny 3 opraveny v patchi, ale druhý link nestihl doběhnout (změna hlavičky = přeložit vše znovu).
+- Poučení: nespouštět `ninja` v Bash s `&` bez `setsid nohup` — nástroj ho po 30 min zabije.
+- Co dál: `ninja blender`, `--version` v Node, stage `50_headless` (zatím NENÍ v ci-stages.txt).
 - Potřebuju od tebe: viz STATUS.md.
 
 ---

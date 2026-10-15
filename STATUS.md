@@ -1,6 +1,6 @@
 # STATUS
 
-Výsledek noci: ✅ pokrok — M1–M4 hotové, M5 rozpracovaný (celý Blender se skoro přeloží do wasm64) (2026-10-15)
+Výsledek noci: ✅ pokrok — M1–M4 hotové, M5 rozpracovaný (všechno se přeloží do wasm64, chybí poslední link) (2026-10-15)
 
 ## Aktuální milník
 **CURRENT: M5 — Headless Blender ve wasm (bez Pythonu)**
@@ -8,8 +8,8 @@ Výsledek noci: ✅ pokrok — M1–M4 hotové, M5 rozpracovaný (celý Blender 
 ## Úkoly aktuálního milníku
 - [x] M5.0 Rozhodnutí wasm64 (ADR-0003): wasm32 nejde, Blender 5.x potřebuje 64bitové ukazatele
 - [x] M5.1 `bf_blenlib`, makesdna, datatoc a generátory se přeloží a spustí v Node
-- [~] M5.2 Všechny `bf_*` knihovny (bez Pythonu, bez GPU) — opraveno: FE_* makra, statfs, initClearGL, UNUSED_VARS(C…); zbývá ověřit konec buildu
-- [ ] M5.3 Slinkovat `blender.js/.wasm` (`ninja blender` v `build-wasm/`)
+- [x] M5.2 Všechny `bf_*` knihovny se přeloží (2170 kroků, 0 chyb překladu)
+- [~] M5.3 Link `blender.js/.wasm`: 1. pokus padl na 3 věcech, všechny opravené v patchi (initial memory 256MB, `malloc_stats`, `BPY_string_compile_check` bez Pythonu) — **druhý link ještě neběžel**, noc došla
 - [ ] M5.4 Spustit v Node: `blender -b --version`
 - [ ] M5.5 Stage `50_headless.sh`: načíst `cube.blend`, exit 0
 
@@ -17,7 +17,7 @@ Výsledek noci: ✅ pokrok — M1–M4 hotové, M5 rozpracovaný (celý Blender 
 - nic
 
 ## Co dál
-- M5: dokončit link `blender`, pak `--version` v Node.
+- M5: spustit `ninja blender` (po změně hlavičky v guardedalloc se přeloží vše znovu, ~35 min s ccache), vyřešit případné další undefined symbols, pak `--version` v Node.
 - Build: `source emsdk/emsdk_env.sh && cd build-wasm && ninja blender` (cca 60–90 min na 4 jádrech).
 
 ## Potřebuju od tebe (Lukáši)
