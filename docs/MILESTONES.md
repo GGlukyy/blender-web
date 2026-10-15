@@ -56,6 +56,13 @@ přidá objekt, uloží.
 **Cíl:** nový `source/blender/gpu/webgpu/`, Blender ho umí vybrat, inicializuje device
 a vyčistí plátno na danou barvu. Okno přes GHOST SDL.
 **DoD:** `80_webgpu_clear.sh` → screenshot plátna má barvu `#FF00FF` (±2).
+**Pozor (main loop):** desktop Blender končí v nekonečné smyčce `WM_main()`. Díky
+`-sPROXY_TO_PTHREAD` neblokuje hlavní vlákno prohlížeče, ale WebGPU v tom vlákně potřebuje
+vracet řízení event loopu (jinak se snímek nikdy neprezentuje a async volání jako
+`requestAdapter` nedoběhnou). Plán: pro `__EMSCRIPTEN__` nahradit smyčku
+`emscripten_set_main_loop_arg()` (jedna iterace = events → handlers → notifiers →
+`wm_draw_update`), případně ASYNCIFY/JSPI. Canvas do workeru přes OffscreenCanvas.
+Rozhodnutí zapsat jako ADR, před návrhem se poradit s `architect`.
 
 ## M9 🎨 Shadery do WGSL (≈4–10 nocí)
 **Cíl:** všechny shadery potřebné pro Workbench Solid + overlaye + UI se přeloží
@@ -74,6 +81,9 @@ rozdíl < 2 % pixelů (tolerance je pevná, neměnit).
 **DoD:** `110_ui.sh` → automatizovaný scénář (Playwright klikne/stiskne klávesy) změní
 pozici objektu, uloží .blend a `validate_blend.py` potvrdí novou pozici.
 + ruční checklist v PR pro Lukáše.
+**Navíc (dotyk/tablet):** bez myši nejde orbit (prostřední tlačítko). Namapovat
+tah dvěma prsty → MMB drag (orbit), pinch → kolečko (zoom), dlouhý dotyk → pravé tlačítko.
+Řešit v JS vrstvě nebo GHOST, ne v jádru Blenderu.
 
 ## M12 🧱 Soubory a UX (≈2–4 noci)
 **Cíl:** otevřít .blend z disku, uložit, stáhnout, OPFS „rozdělaná práce“ přežije reload.
