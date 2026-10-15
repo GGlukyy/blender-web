@@ -197,6 +197,25 @@ Use it when:
 - a change would touch a widely-included header or force a **full rebuild**,
 - you must choose between approaches (write the result as an ADR).
 
+- you are about to write a **decision request** into "Potřebuju od tebe" (see below).
+
 Give it: goal, what you tried, exact error lines, file paths. It returns a plan; you implement.
+
+### Decisions: let the architect decide, don't wait for Lukáš
+Lukáš is not a graphics/C++ engineer and may not answer for days. Technical decisions
+(which approach, ADR approval, build/config trade-offs, wasm/WebGPU details) are decided by the
+**architect**, not by Lukáš:
+1. Ask the architect with the options and their costs.
+2. If it gives a clear recommendation → **apply it**, write/update the ADR with
+   `Schváleno: architect (Opus) <date>` and continue in the same run.
+3. Mention it in STATUS.md under *Co jsem udělal* (one line, plain Czech), **not** under
+   "Potřebuju od tebe".
+
+Put something in **"Potřebuju od tebe"** only if it truly needs a human:
+- things only Lukáš can do: secrets, GitHub settings, accounts, money, his computer/devices,
+  testing by hand on a real device;
+- changes to `.github/workflows/` (you may not edit them — describe the exact change needed);
+- changes to project scope or pins: dropping/adding a goal (e.g. iPad), changing `versions.env`,
+  editing CLAUDE.md rules or test tolerances.
 Don't call it for routine work — it costs more. Note each consultation in LOG.md
 (`architect: <question> → <decision>`).
