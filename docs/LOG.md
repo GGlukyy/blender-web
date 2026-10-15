@@ -11,6 +11,20 @@ Nejnovější záznam nahoře. Formát:
 - Potřebuju od tebe:
 ```
 
+## 2026-10-15 — M5 (rozpracováno) — 🟡
+- Zeď: wasm32 nejde (`dna_verify.cc`: offsetof(Scene…) nesedí). → ADR-0003: **wasm64**. Všechny deps přeloženy znovu.
+- Opravy Blenderu (vše v `patches/blender-web.patch`, guardy `__EMSCRIPTEN__`):
+  - `FE_DIVBYZERO/FE_INVALID` = 0 (Emscripten nemá FPU flagy),
+  - `statfs` → `statvfs`,
+  - `initClearGL()` jen s `WITH_OPENGL_BACKEND`,
+  - upstream chyba `UNUSED_VARS(C, …)` v `disk_file_hash_service.cc` při buildu bez Pythonu.
+- Build-tooly (makesdna, datatoc…) běží v Node: shebang + `-sNODERAWFS=1` (v `platform_wasm.cmake`).
+- Důkaz: `CONFIGURE OK`, `DEPS OK`, `TOOLCHAIN OK` (wasm32 i wasm64).
+- Co dál: dokončit link (`ninja blender`), `--version` v Node, stage `50_headless`.
+- Potřebuju od tebe: viz STATUS.md.
+
+---
+
 ## 2026-10-15 — M4 — ✅
 - Co jsem udělal: `scripts/build_deps.sh` přeloží 16 knihoven do `deps/wasm` (verze podle Blenderu), stage `40_deps`.
 - Důkaz: `DEPS OK`, seznam v `out/deps.txt`.
