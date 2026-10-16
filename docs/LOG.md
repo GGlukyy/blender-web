@@ -11,6 +11,17 @@ Nejnovější záznam nahoře. Formát:
 - Potřebuju od tebe:
 ```
 
+## 2026-10-16 — M5 — ✅
+- cache: deps HIT, build-wasm HIT
+- Druhý link `blender` doběhl (už byl hotový z minula, `ninja: no work to do`).
+- `blender -b --version` v Node → `Blender 5.2.2 LTS`. `blender -b cube.blend` → načte a skončí s kódem 0.
+- Pozor: bez `BLENDER_SYSTEM_DATAFILES=blender/release/datafiles` spadne na chybějících fontech (assert v `BLF_default`). Stage to nastavuje; v M7 budou fonty v MEMFS.
+- Důkaz: `HEADLESS OK: Blender 5.2.2 LTS, cube.blend loaded, exit 0`
+- Stage `50_headless` přidána do `ci-stages.txt`. M6 rozepsán na úkoly, kód nezačat.
+- Potřebuju od tebe: nic.
+
+---
+
 ## 2026-10-15 — M5 (rozpracováno) — 🟡
 - Zeď: wasm32 nejde (`dna_verify.cc`: offsetof(Scene…) nesedí). → ADR-0003: **wasm64**. Všechny deps přeloženy znovu.
 - Opravy Blenderu (vše v `patches/blender-web.patch`, guardy `__EMSCRIPTEN__`):

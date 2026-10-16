@@ -108,6 +108,12 @@ jobs:
           restore-keys: |
             build-${{ steps.keys.outputs.versions }}-
 
+      # The cached ./blender may contain edits from earlier (possibly lost/unmerged) runs.
+      # Always start from exactly BLENDER_TAG + patches/blender-web.patch.
+      - name: Reset Blender source to tag + patch
+        run: |
+          if [ -d blender/.git ]; then scripts/prepare_blender.sh --reset; fi
+
       - name: ccache
         uses: hendrikmuhs/ccache-action@v1.2
         with:

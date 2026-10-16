@@ -14,5 +14,9 @@ that could happen again. Never delete bullets; mark outdated ones with ~~striket
 - Build tools (makesdna, datatoc…) run in Node with `-sNODERAWFS=1`.
 
 ## Process
+- A test passing on a **cached build is not proof**. `build-wasm/` may contain binaries from older,
+  unmerged runs. Before claiming a milestone, make sure `ninja` actually rebuilt from the current
+  patch (the workflow now resets `./blender` to tag + patch at start). If `ninja: no work to do`
+  right after a reset, double-check that your fixes are really in `patches/blender-web.patch`.
 - Workflow caches `deps/` and `build-wasm/` between runs (keys start with `build-`). If they look
   missing, write it in STATUS.md "Potřebuju od tebe" — do not edit workflows.
