@@ -15,10 +15,10 @@ index 141fdaf9..8a6ac60b 100644
    include(platform_win32)
 diff --git a/build_files/cmake/platform/platform_wasm.cmake b/build_files/cmake/platform/platform_wasm.cmake
 new file mode 100644
-index 00000000..8827d971
+index 00000000..45dfbde1
 --- /dev/null
 +++ b/build_files/cmake/platform/platform_wasm.cmake
-@@ -0,0 +1,108 @@
+@@ -0,0 +1,110 @@
 +# SPDX-FileCopyrightText: 2026 Blender Web port
 +#
 +# SPDX-License-Identifier: GPL-2.0-or-later
@@ -26,7 +26,7 @@ index 00000000..8827d971
 +# Platform configuration for Emscripten / WebAssembly (blender-web port).
 +#
 +# Libraries are NOT searched on the system. They come either from Emscripten ports
-+# (zlib, freetype, SDL3) or from WASM_DEPS_PREFIX (built in milestone M4).
++# (zlib, SDL3) or from WASM_DEPS_PREFIX (built in milestone M4).
 +# Run scripts/build_deps.sh first.
 +
 +# Prefix with wasm-built libraries (plain variable on purpose: a stale cached value is a trap).
@@ -38,7 +38,7 @@ index 00000000..8827d971
 +file(MAKE_DIRECTORY "${WASM_DEPS_PREFIX}/include" "${WASM_DEPS_PREFIX}/lib" "${WASM_DEPS_PREFIX}/bin")
 +
 +# --- Emscripten ports -------------------------------------------------------
-+set(EM_PORT_FLAGS "--use-port=zlib" "--use-port=freetype" "--use-port=sdl3")
++set(EM_PORT_FLAGS "--use-port=zlib" "--use-port=sdl3")
 +add_compile_options(${EM_PORT_FLAGS} -sMEMORY64=1)
 +add_link_options(${EM_PORT_FLAGS} -sMEMORY64=1)
 +set(_em_sysroot_inc "${EMSCRIPTEN_SYSROOT}/include")
@@ -48,10 +48,12 @@ index 00000000..8827d971
 +set(ZLIB_FOUND TRUE)
 +set(ZLIB_INCLUDE_DIRS "${_em_sysroot_inc}")
 +set(ZLIB_LIBRARIES "")
++# FreeType comes from the prefix, NOT the Emscripten port: the port has no Brotli,
++# and Blender's UI fonts are WOFF2 (Brotli-compressed).
 +set(FREETYPE_FOUND TRUE)
-+set(FREETYPE_INCLUDE_DIRS "${_em_sysroot_inc}/freetype2")
-+set(FREETYPE_LIBRARIES "")
-+set(BROTLI_LIBRARIES "")
++set(FREETYPE_INCLUDE_DIRS "${_inc}/freetype2")
++set(FREETYPE_LIBRARIES "${_lib}/libfreetype.a")
++set(BROTLI_LIBRARIES "${_lib}/libbrotlidec.a" "${_lib}/libbrotlicommon.a")
 +
 +# --- Libraries built by scripts/build_deps.sh into WASM_DEPS_PREFIX -----------
 +list(APPEND CMAKE_FIND_ROOT_PATH "${WASM_DEPS_PREFIX}")
