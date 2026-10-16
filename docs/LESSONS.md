@@ -22,3 +22,10 @@ that could happen again. Never delete bullets; mark outdated ones with ~~striket
   missing, write it in STATUS.md "Potřebuju od tebe" — do not edit workflows.
 
 - Agent v CI dřív končil po 5–7 min, i když měl hodiny času (ukončil se sám). Teď to hlídá Stop hook `tools/stop_guard.sh` (`.github/agent/claude-settings.json`): dokud zbývá > 45 min, konec odmítne. Když tě zastaví, neber to jako chybu — vezmi další úkol.
+- `.gitignore` s `deps/` ignoruje i `patches/deps/`. Používej kořenové `/deps/`. Cokoli, co existuje jen v cache (ruční úpravy v `deps/src`), se ztratí — vždy ulož jako `patches/deps/*.diff` a ověř čistým rebuildem.
+- Web Blender v Node potřebuje `BLENDER_SYSTEM_RESOURCES` (`source scripts/web_resources.sh`): datafiles + scripts + python home. Bez toho Python/fonty spadnou.
+- Emscripten `-fignore-exceptions`: jakýkoli `throw` v C++ = `Aborted(undefined)`. Zjistíš kde: relink s `--profiling-funcs` do /tmp (`ninja -t commands bin/blender.js`), pak stack trace má jména funkcí.
+- Relink s názvy funkcí pro web: v `out/web/link.sh` dej `--profiling-funcs` PŘED `-o` (ne za něj), jinak se flag ztratí a stack v Chrome má jen čísla.
+- `add_definitions(-DWITH_X)` v `gpu/CMakeLists.txt` platí jen pro knihovnu gpu — `creator` ho nevidí (proto nemáme `--gpu-backend webgpu`; backend se vybere sám, je jediný).
+- OCIO/OIIO `throw` při PNG/thumbnail: nastav `OIIO_DISABLE_BUILTIN_OCIO_CONFIGS=1` z JS před startem (ENV, ne setenv uvnitř) — ADR-0005.
+- SDL3 port (Emscripten) má EM_ASM, co není wasm64-safe (BigInt vs Number): vlastní kurzor → vypnuto v GHOST pod `__EMSCRIPTEN__`.

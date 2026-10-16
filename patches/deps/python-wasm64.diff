@@ -1,0 +1,40 @@
+diff -ruN a/Modules/expat/pyexpatns.h b/Modules/expat/pyexpatns.h
+--- a/Modules/expat/pyexpatns.h
++++ b/Modules/expat/pyexpatns.h
+@@ -127,6 +127,9 @@
+ #define XML_UseParserAsHandlerArg       PyExpat_XML_UseParserAsHandlerArg
+ #define XmlUtf16Encode                  PyExpat_XmlUtf16Encode
+ #define XmlUtf8Encode                   PyExpat_XmlUtf8Encode
++/* blender-web: these two clash with the separate expat (OCIO) at Blender link time */
++#define g_reparseDeferralEnabledDefault PyExpat_g_reparseDeferralEnabledDefault
++#define _INTERNAL_trim_to_complete_utf8_characters PyExpat__INTERNAL_trim_to_complete_utf8_characters
+ 
+ 
+ #endif /* !PYEXPATNS_H */
+diff -ruN a/Python/emscripten_trampoline.c b/Python/emscripten_trampoline.c
+--- a/Python/emscripten_trampoline.c
++++ b/Python/emscripten_trampoline.c
+@@ -26,7 +26,12 @@
+ void
+ _Py_EmscriptenTrampoline_Init(_PyRuntimeState *runtime)
+ {
++#if defined(__wasm64__)
++    /* wasm64: the reflection path casts return types too (setters return int); use the JS path only. */
++    runtime->wasm_type_reflection_available = 0;
++#else
+     runtime->wasm_type_reflection_available = _PyEM_detect_type_reflection();
++#endif
+ }
+ 
+ /**
+@@ -38,7 +43,9 @@
+                                   PyObject *arg2,
+                                   PyObject *arg3),
+ {
+-    return wasmTable.get(func)(arg1, arg2, arg3);
++    // wasm64: the table is 64-bit (BigInt index); pointers arrive as BigInt; i32 results (setters) -> BigInt
++    const r = wasmTable.get(func)(arg1, arg2, arg3);
++    return (typeof r === "number") ? BigInt(r) : r;
+ }
+ );
+ 

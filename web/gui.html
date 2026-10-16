@@ -1,0 +1,13 @@
+<!doctype html><html><body style="margin:0"><canvas id="canvas" width="800" height="600" tabindex="0"></canvas>
+<script>
+window.__lines=[];
+const sceneP = fetch("cube.blend").then(r=>r.arrayBuffer()).then(b=>new Uint8Array(b));
+(async()=>{
+const scene = await sceneP;
+const pr=(t)=>{window.__lines.push(t);console.log(t);};
+window.Module={canvas:document.getElementById("canvas"), arguments:["--debug-wm","--debug-gpu","--debug-ghost","/work/cube.blend"], print:pr, printErr:pr,
+ preRun:[()=>{Module.ENV.BLENDER_SYSTEM_RESOURCES="/resources";Module.ENV.OIIO_DISABLE_BUILTIN_OCIO_CONFIGS="1";Module.FS.mkdir("/work");Module.FS.writeFile("/work/cube.blend",scene);}],
+ onAbort:(w)=>pr("ABORT "+w)};
+for(const src of ["blender.data.js","blender.js"]) await new Promise((res,rej)=>{const s=document.createElement("script");s.src=src;s.onload=res;s.onerror=rej;document.body.appendChild(s);});
+})();
+</script></body></html>

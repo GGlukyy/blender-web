@@ -1,0 +1,73 @@
+diff -ruN a/src/include/OpenImageIO/typedesc.h b/src/include/OpenImageIO/typedesc.h
+--- a/src/include/OpenImageIO/typedesc.h
++++ b/src/include/OpenImageIO/typedesc.h
+@@ -425,7 +425,7 @@
+ template<> struct BaseTypeFromC<const uint64_t> { static constexpr TypeDesc::BASETYPE value = TypeDesc::UINT64; };
+ template<> struct BaseTypeFromC<int64_t> { static constexpr TypeDesc::BASETYPE value = TypeDesc::INT64; };
+ template<> struct BaseTypeFromC<const int64_t> { static constexpr TypeDesc::BASETYPE value = TypeDesc::INT64; };
+-#if defined(__GNUC__) && (ULONG_MAX == 0xffffffffffffffff) && !(defined(__APPLE__) && defined(__MACH__)) && !defined(__OpenBSD__) || defined(__NetBSD__)
++#if defined(__GNUC__) && (ULONG_MAX == 0xffffffffffffffff) && !(defined(__APPLE__) && defined(__MACH__)) && !defined(__OpenBSD__) && !defined(__EMSCRIPTEN__) || defined(__NetBSD__)
+ // Some platforms consider int64_t and long long to be different types, even
+ // though they are actually the same size.
+ static_assert(!std::is_same_v<unsigned long long, uint64_t>);
+diff -ruN a/src/libutil/strutil.cpp b/src/libutil/strutil.cpp
+--- a/src/libutil/strutil.cpp
++++ b/src/libutil/strutil.cpp
+@@ -79,7 +79,7 @@
+ // On systems that support it, get a location independent locale.
+ #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) \
+     || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)           \
+-    || defined(__GLIBC__) || defined(__NetBSD__)
++    || defined(__GLIBC__) || defined(__NetBSD__) || defined(__EMSCRIPTEN__)
+ static locale_t c_loc = newlocale(LC_ALL_MASK, "C", nullptr);
+ #elif defined(_WIN32)
+ static _locale_t c_loc = _create_locale(LC_ALL, "C");
+@@ -527,7 +527,7 @@
+ {
+ #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) \
+     || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)           \
+-    || defined(__GLIBC__)
++    || defined(__GLIBC__) || defined(__EMSCRIPTEN__)
+     return strcasecmp_l(a, b, c_loc);
+ #elif defined(_WIN32)
+     return _stricmp_l(a, b, c_loc);
+@@ -550,7 +550,7 @@
+ {
+ #if defined(__linux__) || defined(__APPLE__) || defined(__FreeBSD__) \
+     || defined(__FreeBSD_kernel__) || defined(__OpenBSD__)           \
+-    || defined(__GLIBC__)
++    || defined(__GLIBC__) || defined(__EMSCRIPTEN__)
+     return strncasecmp_l(a, b, size, c_loc);
+ #elif defined(_WIN32)
+     return _strnicmp_l(a, b, size, c_loc);
+diff -ruN a/src/libutil/sysutil.cpp b/src/libutil/sysutil.cpp
+--- a/src/libutil/sysutil.cpp
++++ b/src/libutil/sysutil.cpp
+@@ -57,7 +57,7 @@
+ #    include <sys/resource.h>
+ #endif
+ 
+-#ifdef __GNU__
++#if defined(__GNU__) || defined(__EMSCRIPTEN__)
+ #    include <sys/ioctl.h>
+ #    include <unistd.h>
+ #endif
+@@ -204,6 +204,9 @@
+     sysctl(mib, 2, &physical_memory, &length, NULL, 0);
+     return physical_memory;
+ 
++#elif defined(__EMSCRIPTEN__)
++    return size_t(sysconf(_SC_PHYS_PAGES)) * size_t(sysconf(_SC_PAGESIZE));
++
+ #else
+     // No idea what platform this is
+     OIIO_ASSERT(
+@@ -270,7 +273,7 @@
+     size_t cb = sizeof(filename);
+     int r     = 1;
+     sysctl(mib, 4, filename, &cb, NULL, 0);
+-#elif defined(__GNU__) || defined(__OpenBSD__) || defined(_WIN32)
++#elif defined(__GNU__) || defined(__OpenBSD__) || defined(_WIN32) || defined(__EMSCRIPTEN__)
+     int r = 0;
+ #else
+     // No idea what platform this is
