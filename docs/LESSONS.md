@@ -20,3 +20,5 @@ that could happen again. Never delete bullets; mark outdated ones with ~~striket
   right after a reset, double-check that your fixes are really in `patches/blender-web.patch`.
 - Workflow caches `deps/` and `build-wasm/` between runs (keys start with `build-`). If they look
   missing, write it in STATUS.md "Potřebuju od tebe" — do not edit workflows.
+
+- Agent v CI dřív končil po 5–7 min, i když měl hodiny času (ukončil se sám). Teď to hlídá Stop hook `tools/stop_guard.sh` (`.github/agent/claude-settings.json`): dokud zbývá > 45 min, konec odmítne. Když tě zastaví, neber to jako chybu — vezmi další úkol.

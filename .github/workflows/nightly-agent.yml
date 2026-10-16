@@ -135,6 +135,7 @@ jobs:
             --model ${{ env.AGENT_MODEL }}
             --effort ${{ env.AGENT_EFFORT }}
             --max-turns 500
+            --settings .github/agent/claude-settings.json
             --allowedTools "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,TodoWrite,Agent,Task"
 
       # ---------- save everything, even after failure ----------
@@ -202,6 +203,19 @@ jobs:
             echo '```'
             echo
             echo "Agent: **${{ steps.agent.outcome }}** · Artefakty (logy, screenshoty): v běhu Actions → Artifacts"
+            # Why/when did the agent end? (diagnostics from the action's execution file)
+            EXEC="${{ steps.agent.outputs.execution_file }}"
+            if [ -n "$EXEC" ] && [ -f "$EXEC" ]; then
+              jq -r 'map(select(.type=="result")) | last // empty |
+                "Konec agenta: `\(.subtype // "?")` · tahů: \(.num_turns // "?") · minut: \((.duration_ms // 0)/60000 | floor) · chyba: \(.is_error | tostring)"' "$EXEC" 2>/dev/null || true
+              echo
+              echo "<details><summary>Poslední zpráva agenta</summary>"
+              echo
+              jq -r 'map(select(.type=="result")) | last | .result // "(žádná)"' "$EXEC" 2>/dev/null | head -c 3000 || true
+              echo
+              echo "</details>"
+            fi
+            echo "Stop hook zablokoval předčasný konec: $(cat out/.stop_blocks 2>/dev/null || echo 0)×"
             if [ -s out/excluded.txt ]; then
               echo
               echo "⚠️ **Vynecháno z PR** (záloha v artefaktu \`agent-work.bundle\`):"
