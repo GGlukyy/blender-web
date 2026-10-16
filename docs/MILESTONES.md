@@ -51,6 +51,11 @@ přidá objekt, uloží.
 **Cíl:** stejný roundtrip jako M6, ale v headless Chromu přes `web/index.html`
 (COOP/COEP server, MEMFS, stažení .blend).
 **DoD:** `70_browser.sh` (Playwright) → `BROWSER ROUNDTRIP OK`.
+**Nasazení (ověřit už tady):** cílem je veřejná stránka na GitHub Pages, kde Blender běží
+nativně v prohlížeči (žádný streaming). GitHub Pages neumí COOP/COEP hlavičky → použít
+`coi-serviceworker` (MIT, zapsat do THIRD_PARTY.md). Limit 100 MB na soubor → wasm komprimovat
+/ rozdělit. Alternativa: Cloudflare Pages (`_headers`). Připrav `web/` tak, aby šel nasadit
+jako statický web; workflow pro Pages napiš jako návrh do „Potřebuju od tebe“ (workflowy nesmíš měnit).
 
 ## M8 🎨 WebGPU backend — kostra (≈3–6 nocí)
 **Cíl:** nový `source/blender/gpu/webgpu/`, Blender ho umí vybrat, inicializuje device
