@@ -15,6 +15,6 @@ test -s out/cmake-options.txt
 test -f build-wasm/build.ninja
 # the options that define this port must really be set
 grep -q '^WITH_CYCLES:BOOL=OFF' out/cmake-options.txt
-grep -q '^WITH_PYTHON:BOOL=OFF' out/cmake-options.txt
+grep -q '^WITH_PYTHON:BOOL=ON' out/cmake-options.txt
 grep -q '^WITH_GHOST_SDL:BOOL=ON' out/cmake-options.txt
 echo "CONFIGURE OK"

@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Blender Web</title>
+<style>body{margin:0;background:#222;color:#ddd;font:13px monospace}pre{margin:8px;white-space:pre-wrap}</style></head>
+<body>
+<pre id="log">Loading…</pre>
+<script>
+// Test/boot harness (M7). Query: ?scene=cube.blend&script=roundtrip.py
+// Blender runs headless (-b) inside MEMFS; the result .blend is exposed in window.__result.
+const logEl = document.getElementById("log");
+const log = (t) => { logEl.textContent += "\n" + t; };
+window.__done = false;
+window.__lines = [];
+
+async function boot() {
+  const q = new URLSearchParams(location.search);
+  const scene = q.get("scene") ?? "cube.blend";
+  const script = q.get("script") ?? "roundtrip.py";
+  const [sceneBytes, scriptBytes] = await Promise.all(
+    [scene, script].map(async (f) => new Uint8Array(await (await fetch(f)).arrayBuffer())));
+
+  const print = (t) => {
+    window.__lines.push(t); log(t);
+    if (/^Blender quit/.test(t)) {
+      try { window.__result = Array.from(Module.FS.readFile("/work/roundtrip.blend")); } catch (e) { window.__result = null; }
+      window.__done = true;
+    }
+  };
+  window.Module = {
+    arguments: ["-b", "/work/" + scene, "--python", "/work/" + script, "--", "/work/roundtrip.blend"],
+    print, printErr: print,
+    locateFile: (p) => p,
+    preRun: [() => {
+      Module.ENV.BLENDER_SYSTEM_RESOURCES = "/resources";
+      Module.ENV.OIIO_DISABLE_BUILTIN_OCIO_CONFIGS = "1";   // OCIO throws on "no equivalent colorspace"; exceptions are off (ADR-0005)
+      Module.FS.mkdir("/work");
+      Module.FS.writeFile("/work/" + scene, sceneBytes);
+      Module.FS.writeFile("/work/" + script, scriptBytes);
+    }],
+    onAbort: (w) => { log("ABORT " + w); window.__done = true; },
+  };
+  for (const src of ["blender.data.js", "blender.js"]) {
+    await new Promise((res, rej) => {
+      const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = rej;
+      document.body.appendChild(s);
+    });
+  }
+}
+boot().catch((e) => { log("BOOT ERROR " + e); window.__done = true; });
+</script>
+</body></html>

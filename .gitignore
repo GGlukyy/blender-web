@@ -1,7 +1,7 @@
 blender/
 emsdk/
 build*/
-deps/
+/deps/
 desktop-blender/
 out/
 node_modules/

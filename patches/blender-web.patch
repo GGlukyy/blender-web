@@ -1,8 +1,19 @@
 diff --git a/CMakeLists.txt b/CMakeLists.txt
-index 141fdaf9..8a6ac60b 100644
+index 141fdaf9..c4e83086 100644
 --- a/CMakeLists.txt
 +++ b/CMakeLists.txt
-@@ -1538,7 +1538,9 @@ endif()
+@@ -945,6 +945,10 @@ else()
+   mark_as_advanced(WITH_VULKAN_BACKEND)
+ endif()
+ 
++# WebGPU (blender-web port, Emscripten only)
++option(WITH_GPU_WEBGPU_BACKEND "Enable WebGPU as graphics backend (blender-web port)" OFF)
++mark_as_advanced(WITH_GPU_WEBGPU_BACKEND)
++
+ # Metal
+ if(APPLE)
+   option(WITH_METAL_BACKEND "\
+@@ -1538,7 +1542,9 @@ endif()
  # - WIN32
  # - APPLE
  
@@ -15,10 +26,10 @@ index 141fdaf9..8a6ac60b 100644
    include(platform_win32)
 diff --git a/build_files/cmake/platform/platform_wasm.cmake b/build_files/cmake/platform/platform_wasm.cmake
 new file mode 100644
-index 00000000..45dfbde1
+index 00000000..9d6b5030
 --- /dev/null
 +++ b/build_files/cmake/platform/platform_wasm.cmake
-@@ -0,0 +1,110 @@
+@@ -0,0 +1,125 @@
 +# SPDX-FileCopyrightText: 2026 Blender Web port
 +#
 +# SPDX-License-Identifier: GPL-2.0-or-later
@@ -94,6 +105,21 @@ index 00000000..45dfbde1
 +# Host Python: only used to run build-time code generators (not the Python inside Blender).
 +find_program(PYTHON_EXECUTABLE python3 NO_CMAKE_FIND_ROOT_PATH)
 +
++# Python inside Blender: CPython built by scripts/build_python.sh (static, wasm64).
++# Everything is set explicitly: under the Emscripten toolchain find_path() is redirected to the sysroot.
++if(WITH_PYTHON)
++  set(PYTHON_VERSION "3.13" CACHE STRING "" FORCE)
++  set(PYTHON_INCLUDE_DIR "${_inc}/python3.13" CACHE PATH "" FORCE)
++  set(PYTHON_INCLUDE_CONFIG_DIR "${_inc}/python3.13" CACHE PATH "" FORCE)
++  set(PYTHON_LIBRARY "${_lib}/libpython3.13.a" CACHE FILEPATH "" FORCE)
++  set(PYTHON_LIBPATH "${_lib}" CACHE PATH "" FORCE)
++  set(PYTHON_LINKFLAGS "" CACHE STRING "" FORCE)
++  find_package(PythonLibsUnix REQUIRED)
++  # Modules compiled into libpython3.13.a need these side archives.
++  list(APPEND PYTHON_LIBRARIES "${_lib}/libpython3.13-mpdec.a" "${_lib}/libpython3.13-expat.a"
++       "${_lib}/libpython3.13-hacl.a")
++endif()
++
 +# --- Threads, platform libs -------------------------------------------------
 +list(APPEND PLATFORM_LINKLIBS -lm)
 +find_package(Threads)
@@ -104,7 +130,7 @@ index 00000000..45dfbde1
 +
 +set(PLATFORM_CFLAGS "-pthread -sMEMORY64=1 -funsigned-char -fno-strict-aliasing")
 +option(WITH_WASM_NODE_TARGET "Build executables to run in Node (headless, M5). OFF = browser build." ON)
-+set(PLATFORM_LINKFLAGS "-pthread -sMEMORY64=1 -sPROXY_TO_PTHREAD -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB")
++set(PLATFORM_LINKFLAGS "-pthread -sMEMORY64=1 -sPROXY_TO_PTHREAD -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=256MB -sMAXIMUM_MEMORY=4GB -sSTACK_SIZE=8MB -sDEFAULT_PTHREAD_STACK_SIZE=8MB")
 +if(WITH_WASM_NODE_TARGET)
 +  # Node with the real file system, so build-time tools (makesdna, datatoc, …) can write files.
 +  set(PLATFORM_LINKFLAGS "${PLATFORM_LINKFLAGS} -sENVIRONMENT=node -sNODERAWFS=1 -sEXIT_RUNTIME=1")
@@ -143,6 +169,32 @@ index 24727001..ba008740 100644
      SDL_GL_SwapWindow(window_);
  
      active_context_ = this;
+diff --git a/intern/ghost/intern/GHOST_WindowSDL.cc b/intern/ghost/intern/GHOST_WindowSDL.cc
+index 6e51b294..4c499465 100644
+--- a/intern/ghost/intern/GHOST_WindowSDL.cc
++++ b/intern/ghost/intern/GHOST_WindowSDL.cc
+@@ -511,6 +511,12 @@ static SDL_Cursor *sdl_ghost_CreateCursor(
+   const Uint32 white = 0xFFFFFFFF;
+   const Uint32 transparent = 0x00000000;
+ 
++#ifdef __EMSCRIPTEN__
++  /* The Emscripten SDL3 port's custom-cursor `EM_ASM` is not wasm64-safe (BigInt vs Number):
++   * "Cannot convert N to a BigInt". Use the browser's default cursor instead. */
++  (void)data, (void)mask, (void)w, (void)h, (void)hot_x, (void)hot_y;
++  return nullptr;
++#endif
+   /* Make sure the width is a multiple of 8 */
+   w = ((w + 7) & ~7);
+ 
+@@ -561,7 +567,7 @@ static SDL_Cursor *getStandardCursorShape(GHOST_TStandardCursor shape)
+         sdl_std_cursor_HEIGHT_##name, \
+         (sdl_std_cursor_WIDTH_##name + (sdl_std_cursor_HOT_X_##name)) - 1, \
+         (sdl_std_cursor_HEIGHT_##name + (sdl_std_cursor_HOT_Y_##name)) - 1); \
+-    assert(sdl_std_cursor_array[int(ind)] != nullptr); \
++    /* nullptr is fine on Emscripten (browser cursor) */ \
+   } \
+   (void)0
+ 
 diff --git a/intern/guardedalloc/intern/mallocn_intern.hh b/intern/guardedalloc/intern/mallocn_intern.hh
 index 5474cf6b..10beb704 100644
 --- a/intern/guardedalloc/intern/mallocn_intern.hh
@@ -245,3 +297,412 @@ index cc549e7f..0733b165 100644
    }
  
    if (name_short.empty()) {
+diff --git a/source/blender/gpu/CMakeLists.txt b/source/blender/gpu/CMakeLists.txt
+index ebf0ae9c..8dbf44a2 100644
+--- a/source/blender/gpu/CMakeLists.txt
++++ b/source/blender/gpu/CMakeLists.txt
+@@ -473,6 +473,12 @@ if(WITH_VULKAN_BACKEND)
+   add_definitions(-DWITH_VULKAN_BACKEND)
+ endif()
+ 
++if(WITH_GPU_WEBGPU_BACKEND)
++  list(APPEND SRC webgpu/wgpu_backend.hh webgpu/wgpu_buffers.hh webgpu/wgpu_shader.hh)
++  list(APPEND INC webgpu)
++  add_definitions(-DWITH_GPU_WEBGPU_BACKEND)
++endif()
++
+ set(GLSL_SRC
+   GPU_shader_shared.hh
+ 
+diff --git a/source/blender/gpu/GPU_platform_backend_enum.h b/source/blender/gpu/GPU_platform_backend_enum.h
+index 2e87ed9b..17ea834c 100644
+--- a/source/blender/gpu/GPU_platform_backend_enum.h
++++ b/source/blender/gpu/GPU_platform_backend_enum.h
+@@ -16,6 +16,7 @@ enum GPUBackendType {
+   GPU_BACKEND_OPENGL = 1 << 0,
+   GPU_BACKEND_METAL = 1 << 1,
+   GPU_BACKEND_VULKAN = 1 << 3,
++  GPU_BACKEND_WEBGPU = 1 << 4,
+   GPU_BACKEND_ANY = 0xFFFFFFFFu
+ };
+ 
+diff --git a/source/blender/gpu/intern/gpu_context.cc b/source/blender/gpu/intern/gpu_context.cc
+index f73af772..db7cc2b9 100644
+--- a/source/blender/gpu/intern/gpu_context.cc
++++ b/source/blender/gpu/intern/gpu_context.cc
+@@ -46,6 +46,9 @@
+ #  include "mtl_backend.hh"
+ #endif
+ #include "dummy_backend.hh"
++#ifdef WITH_GPU_WEBGPU_BACKEND
++#  include "wgpu_backend.hh"
++#endif
+ 
+ #include "draw_debug.hh"
+ 
+@@ -456,6 +459,8 @@ static const char *gpu_backend_type_name(const GPUBackendType backend_type)
+       return "Vulkan";
+     case GPU_BACKEND_METAL:
+       return "Metal";
++    case GPU_BACKEND_WEBGPU:
++      return "WebGPU";
+     case GPU_BACKEND_NONE:
+       return "None";
+     case GPU_BACKEND_ANY:
+@@ -487,6 +492,9 @@ bool GPU_backend_type_selection_detect()
+ #if defined(WITH_VULKAN_BACKEND)
+   backends_to_check.add(GPU_BACKEND_VULKAN);
+ #endif
++#if defined(WITH_GPU_WEBGPU_BACKEND)
++  backends_to_check.add(GPU_BACKEND_WEBGPU);
++#endif
+ 
+   for (const GPUBackendType backend_type : backends_to_check) {
+     GPU_backend_type_selection_set(backend_type);
+@@ -528,6 +536,12 @@ static bool gpu_backend_supported()
+       return MTLBackend::metal_is_supported();
+ #else
+       return false;
++#endif
++    case GPU_BACKEND_WEBGPU:
++#ifdef WITH_GPU_WEBGPU_BACKEND
++      return WebGPUBackend::is_supported();
++#else
++      return false;
+ #endif
+     case GPU_BACKEND_NONE:
+       return true;
+@@ -565,6 +579,11 @@ static void gpu_backend_create()
+     case GPU_BACKEND_METAL:
+       g_backend = MEM_new<MTLBackend>(__func__);
+       break;
++#endif
++#ifdef WITH_GPU_WEBGPU_BACKEND
++    case GPU_BACKEND_WEBGPU:
++      g_backend = MEM_new<WebGPUBackend>(__func__);
++      break;
+ #endif
+     case GPU_BACKEND_NONE:
+       g_backend = MEM_new<DummyBackend>(__func__);
+@@ -615,6 +634,12 @@ GPUBackendType GPU_backend_get_type()
+   }
+ #endif
+ 
++#ifdef WITH_GPU_WEBGPU_BACKEND
++  if (g_backend && dynamic_cast<WebGPUBackend *>(g_backend) != nullptr) {
++    return GPU_BACKEND_WEBGPU;
++  }
++#endif
++
+   return GPU_BACKEND_NONE;
+ }
+ 
+diff --git a/source/blender/gpu/intern/gpu_shader.cc b/source/blender/gpu/intern/gpu_shader.cc
+index 3189b897..b50cd6d8 100644
+--- a/source/blender/gpu/intern/gpu_shader.cc
++++ b/source/blender/gpu/intern/gpu_shader.cc
+@@ -176,6 +176,10 @@ static void standard_defines(Vector<StringRefNull> &sources)
+     case GPU_BACKEND_VULKAN:
+       sources.append("#define GPU_VULKAN\n");
+       break;
++    case GPU_BACKEND_WEBGPU:
++      /* Shaders take the Vulkan GLSL path (GLSL → SPIR-V → WGSL, ADR/CLAUDE.md §5). */
++      sources.append("#define GPU_VULKAN\n");
++      break;
+     default:
+       BLI_assert_msg(false, "Invalid GPU Backend Type");
+       break;
+diff --git a/source/blender/gpu/webgpu/wgpu_backend.hh b/source/blender/gpu/webgpu/wgpu_backend.hh
+new file mode 100644
+index 00000000..e808e359
+--- /dev/null
++++ b/source/blender/gpu/webgpu/wgpu_backend.hh
+@@ -0,0 +1,68 @@
++/* SPDX-FileCopyrightText: 2026 Blender Web port
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later */
++
++/** \file
++ * \ingroup gpu
++ *
++ * WebGPU backend (blender-web port). SKELETON (M8.2): behaves like the dummy backend, but reports
++ * itself as `GPU_BACKEND_WEBGPU`. The device, surface and real resources come in M8.3+.
++ * See docs/decisions/0004-webgpu-main-loop.md.
++ */
++
++#pragma once
++
++#include "dummy_backend.hh"
++#include "gpu_capabilities_private.hh"
++#include "gpu_shader_private.hh"
++#include "wgpu_buffers.hh"
++#include "wgpu_shader.hh"
++
++namespace blender::gpu {
++
++class WebGPUBackend : public DummyBackend {
++ public:
++  WebGPUBackend()
++  {
++    GPG.init(GPU_DEVICE_ANY,
++             GPU_OS_ANY,
++             GPU_DRIVER_ANY,
++             GPU_SUPPORT_LEVEL_SUPPORTED,
++             GPU_BACKEND_WEBGPU,
++             "WebGPU",
++             "",
++             "",
++             GPU_ARCHITECTURE_IMR);
++  }
++
++  void init_resources() override
++  {
++    /* Compile on the calling thread (no worker threads, no extra GPU contexts). */
++    GCaps.use_main_context_workaround = true;
++    compiler_ = MEM_new<ShaderCompiler>(__func__, 1, GPUWorker::ContextType::Main);
++  }
++  void delete_resources() override
++  {
++    MEM_delete(compiler_);
++    compiler_ = nullptr;
++  }
++  Shader *shader_alloc(const char *name) override
++  {
++    return new WebGPUShader(name);
++  }
++  UniformBuf *uniformbuf_alloc(size_t size, const char *name) override
++  {
++    return new WebGPUUniformBuf(size, name);
++  }
++  StorageBuf *storagebuf_alloc(size_t size, GPUUsageType /*usage*/, const char *name) override
++  {
++    return new WebGPUStorageBuf(size, name);
++  }
++
++  static bool is_supported()
++  {
++    return true;
++  }
++};
++
++}  // namespace blender::gpu
+diff --git a/source/blender/gpu/webgpu/wgpu_buffers.hh b/source/blender/gpu/webgpu/wgpu_buffers.hh
+new file mode 100644
+index 00000000..37f3fd9e
+--- /dev/null
++++ b/source/blender/gpu/webgpu/wgpu_buffers.hh
+@@ -0,0 +1,54 @@
++/* SPDX-FileCopyrightText: 2026 Blender Web port
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later */
++
++/** \file
++ * \ingroup gpu
++ *
++ * No-op storage / uniform buffers for the WebGPU backend skeleton (M8.2/M8.3). They only keep a
++ * CPU copy so that code which updates them does not crash. Real GPU buffers come later.
++ */
++
++#pragma once
++
++#include <cstring>
++
++#include "MEM_guardedalloc.h"
++
++#include "gpu_storage_buffer_private.hh"
++#include "gpu_uniform_buffer_private.hh"
++
++namespace blender::gpu {
++
++class WebGPUStorageBuf : public StorageBuf {
++ public:
++  WebGPUStorageBuf(size_t size, const char *name) : StorageBuf(size, name) {}
++  void update(const void * /*data*/) override {}
++  void bind(int /*slot*/) override {}
++  void unbind() override {}
++  void clear(uint32_t /*clear_value*/) override {}
++  void copy_sub(VertBuf * /*src*/,
++                uint /*dst_offset*/,
++                uint /*src_offset*/,
++                uint /*copy_size*/) override
++  {
++  }
++  void read(void *data) override
++  {
++    memset(data, 0, size_in_bytes_);
++  }
++  void async_flush_to_host() override {}
++  void sync_as_indirect_buffer() override {}
++};
++
++class WebGPUUniformBuf : public UniformBuf {
++ public:
++  WebGPUUniformBuf(size_t size, const char *name) : UniformBuf(size, name) {}
++  void update(const void * /*data*/) override {}
++  void clear_to_zero() override {}
++  void bind(int /*slot*/) override {}
++  void bind_as_ssbo(int /*slot*/) override {}
++  void unbind() override {}
++};
++
++}  // namespace blender::gpu
+diff --git a/source/blender/gpu/webgpu/wgpu_shader.hh b/source/blender/gpu/webgpu/wgpu_shader.hh
+new file mode 100644
+index 00000000..186b0f91
+--- /dev/null
++++ b/source/blender/gpu/webgpu/wgpu_shader.hh
+@@ -0,0 +1,104 @@
++/* SPDX-FileCopyrightText: 2026 Blender Web port
++ *
++ * SPDX-License-Identifier: GPL-2.0-or-later */
++
++/** \file
++ * \ingroup gpu
++ *
++ * No-op shader for the WebGPU backend skeleton: "compiles" everything successfully so that
++ * `GPU_init()` can finish. Real GLSL → SPIR-V → WGSL translation is milestone M9.
++ */
++
++#pragma once
++
++#include "gpu_shader_interface.hh"
++#include "gpu_shader_private.hh"
++
++namespace blender::gpu {
++
++class WebGPUShader : public Shader {
++ public:
++  WebGPUShader(const char *name) : Shader(name) {}
++
++  void init(const shader::ShaderCreateInfo &/*info*/, bool /*is_codegen_only*/) override
++  {
++    interface = new ShaderInterface();
++    for (int32_t &b : interface->builtins_) {
++      b = -1;
++    }
++    for (int32_t &b : interface->builtin_blocks_) {
++      b = -1;
++    }
++  }
++
++  const shader::ShaderCreateInfo &patch_create_info(
++      const shader::ShaderCreateInfo &original_info) override
++  {
++    return original_info;
++  }
++
++  void vertex_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
++                               MutableSpan<StringRefNull> /*sources*/) override
++  {
++  }
++  void geometry_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
++                                 MutableSpan<StringRefNull> /*sources*/) override
++  {
++  }
++  void fragment_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
++                                 MutableSpan<StringRefNull> /*sources*/) override
++  {
++  }
++  void compute_shader_from_glsl(const shader::ShaderCreateInfo & /*info*/,
++                                MutableSpan<StringRefNull> /*sources*/) override
++  {
++  }
++  bool finalize(const shader::ShaderCreateInfo * /*info*/ = nullptr) override
++  {
++    return true;
++  }
++  void warm_cache(int /*limit*/) override {}
++
++  void bind(const shader::SpecializationConstants * /*constants_state*/) override {}
++  void unbind() override {}
++
++  void uniform_float(int /*location*/,
++                     int /*comp_len*/,
++                     int /*array_size*/,
++                     const float * /*data*/) override
++  {
++  }
++  void uniform_int(int /*location*/,
++                   int /*comp_len*/,
++                   int /*array_size*/,
++                   const int * /*data*/) override
++  {
++  }
++
++  std::string resources_declare(const shader::ShaderCreateInfo & /*info*/) const override
++  {
++    return "";
++  }
++  std::string vertex_interface_declare(const shader::ShaderCreateInfo & /*info*/) const override
++  {
++    return "";
++  }
++  std::string fragment_interface_declare(const shader::ShaderCreateInfo & /*info*/) const override
++  {
++    return "";
++  }
++  std::string geometry_interface_declare(const shader::ShaderCreateInfo & /*info*/) const override
++  {
++    return "";
++  }
++  std::string geometry_layout_declare(const shader::ShaderCreateInfo & /*info*/) const override
++  {
++    return "";
++  }
++  std::string compute_layout_declare(const shader::ShaderCreateInfo & /*info*/) const override
++  {
++    return "";
++  }
++};
++
++}  // namespace blender::gpu
+diff --git a/source/blender/windowmanager/intern/wm_window.cc b/source/blender/windowmanager/intern/wm_window.cc
+index 4c0aa2cd..033a7e7b 100644
+--- a/source/blender/windowmanager/intern/wm_window.cc
++++ b/source/blender/windowmanager/intern/wm_window.cc
+@@ -2370,6 +2370,8 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const GPUBackendType gpu
+ {
+   switch (gpu_backend) {
+     case GPU_BACKEND_NONE:
++    case GPU_BACKEND_WEBGPU:
++      /* WebGPU: the backend creates its own surface from the canvas, GHOST provides no context. */
+       return GHOST_kDrawingContextTypeNone;
+     case GPU_BACKEND_ANY:
+     case GPU_BACKEND_OPENGL:
+@@ -3501,18 +3503,36 @@ GHOST_IContext *WM_system_gpu_context_create()
+ void WM_system_gpu_context_dispose(GHOST_IContext *context)
+ {
+   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
++#ifdef __EMSCRIPTEN__
++  /* WebGPU backend: GHOST creates no GPU context (`GHOST_kDrawingContextTypeNone`). */
++  if (context == nullptr) {
++    return;
++  }
++#endif
+   g_system->disposeContext(context);
+ }
+ 
+ void WM_system_gpu_context_activate(GHOST_IContext *context)
+ {
+   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
++#ifdef __EMSCRIPTEN__
++  /* WebGPU backend: GHOST creates no GPU context (`GHOST_kDrawingContextTypeNone`). */
++  if (context == nullptr) {
++    return;
++  }
++#endif
+   context->activateDrawingContext();
+ }
+ 
+ void WM_system_gpu_context_release(GHOST_IContext *context)
+ {
+   BLI_assert(GPU_framebuffer_active_get() == GPU_framebuffer_back_get());
++#ifdef __EMSCRIPTEN__
++  /* WebGPU backend: GHOST creates no GPU context (`GHOST_kDrawingContextTypeNone`). */
++  if (context == nullptr) {
++    return;
++  }
++#endif
+   context->releaseDrawingContext();
+ }
+ 

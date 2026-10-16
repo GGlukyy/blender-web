@@ -12,7 +12,7 @@ test -s build-wasm/bin/blender.js
 [[ -s out/scenes/cube.blend ]] || scripts/stages/25_references.sh
 
 B="$PWD/build-wasm/bin/blender.js"
-export BLENDER_SYSTEM_DATAFILES="$PWD/blender/release/datafiles"   # fonts etc.
+source scripts/web_resources.sh   # fonts, scripts, python home
 
 # No `| head` here: with pipefail an early-closed pipe (SIGPIPE) would fail the stage randomly.
 timeout 300 "$EMSDK_NODE" "$B" -b --version > out/version.log 2>&1
