@@ -79,6 +79,16 @@ dep_opencolorio() { build_cmake opencolorio . -DOCIO_BUILD_APPS=OFF -DOCIO_BUILD
   -Dexpat_ROOT="$PREFIX" -Dyaml-cpp_ROOT="$PREFIX" -Dpystring_ROOT="$PREFIX" -DImath_ROOT="$PREFIX" \
   -Dminizip-ng_INCLUDE_DIR="$PREFIX/include/minizip" -Dminizip-ng_LIBRARY="$PREFIX/lib/libminizip.a"; }
 
+# FreeType with Brotli: Blender's UI fonts are WOFF2 (needs Brotli). The Emscripten freetype
+# port has no Brotli, so we build both like Blender's build_environment does.
+dep_brotli() { build_cmake brotli . -DBROTLI_DISABLE_TESTS=ON -DBROTLI_BUNDLED_MODE=OFF
+  # 1.0.9 does not install its static libs (only shared ones); copy them with plain names.
+  for l in brotlicommon brotlidec brotlienc; do cp "$BLD/brotli/lib$l-static.a" "$PREFIX/lib/lib$l.a"; done
+  mkdir -p "$PREFIX/include/brotli"; cp "$SRC/brotli/c/include/brotli/"*.h "$PREFIX/include/brotli/"; }
+dep_freetype() { build_cmake freetype . -DFT_DISABLE_BZIP2=ON -DFT_DISABLE_HARFBUZZ=ON -DFT_DISABLE_PNG=ON \
+  -DFT_REQUIRE_BROTLI=ON -DFT_REQUIRE_ZLIB=ON -DBROTLIDEC_INCLUDE_DIRS="$PREFIX/include" \
+  -DBROTLIDEC_LIBRARIES="$PREFIX/lib/libbrotlidec.a;$PREFIX/lib/libbrotlicommon.a"; }
+
 dep_jpeg() { build_cmake jpeg . -DENABLE_SHARED=OFF -DENABLE_STATIC=ON -DWITH_SIMD=OFF -DWITH_TURBOJPEG=OFF -DWITH_JAVA=OFF -DWITH_TOOLS=OFF -DWITH_TESTS=OFF -DWITH_FUZZ=OFF; }
 dep_png() { build_cmake png . -DPNG_SHARED=OFF -DPNG_STATIC=ON -DPNG_TESTS=OFF -DPNG_TOOLS=OFF -DPNG_FRAMEWORK=OFF -DPNG_HARDWARE_OPTIMIZATIONS=OFF; }
 dep_tiff() { build_cmake tiff . -Dtiff-tools=OFF -Dtiff-tests=OFF -Dtiff-contrib=OFF -Dtiff-docs=OFF -Dtiff-opengl=OFF \
@@ -100,7 +110,7 @@ dep_openimageio() {
     -DOpenImageIO_REQUIRED_DEPS="libjpeg-turbo;TIFF;OpenEXR;PNG;fmt;Robinmap;ZLIB;openjph"
 }
 
-ALL=(zstd fmt eigen imath deflate openjph openexr expat yamlcpp pystring minizipng opencolorio jpeg png tiff robinmap openimageio)
+ALL=(brotli freetype zstd fmt eigen imath deflate openjph openexr expat yamlcpp pystring minizipng opencolorio jpeg png tiff robinmap openimageio)
 targets=("$@"); [[ ${#targets[@]} -eq 0 ]] && targets=("${ALL[@]}")
 for t in "${targets[@]}"; do
   if [[ -f "$PREFIX/.done-$t" ]]; then echo "== $t already built"; continue; fi

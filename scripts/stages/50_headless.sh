@@ -14,7 +14,9 @@ test -s build-wasm/bin/blender.js
 B="$PWD/build-wasm/bin/blender.js"
 export BLENDER_SYSTEM_DATAFILES="$PWD/blender/release/datafiles"   # fonts etc.
 
-VER="$(timeout 300 "$EMSDK_NODE" "$B" -b --version 2>&1 | head -1)"
+# No `| head` here: with pipefail an early-closed pipe (SIGPIPE) would fail the stage randomly.
+timeout 300 "$EMSDK_NODE" "$B" -b --version > out/version.log 2>&1
+VER="$(head -1 out/version.log)"
 echo "$VER"
 [[ "$VER" == Blender\ ${BLENDER_TAG#v}* ]] || { echo "BAD VERSION"; exit 1; }
 
